@@ -133,7 +133,7 @@ input:focus,select:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(
 <div id="modal-container"></div>
 
 <script>
-const APP_VERSION = "1.00";
+const APP_VERSION = "1.01";
 const LS = {
   get: k => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
