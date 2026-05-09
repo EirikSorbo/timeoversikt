@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Timer">
+<meta name="theme-color" content="#185FA5">
+<title>Timeregistrering</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIiB2aWV3Qm94PSIwIDAgMTgwIDE4MCI+PHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIxODAiIHJ4PSI0MCIgZmlsbD0id2hpdGUiLz48Y2lyY2xlIGN4PSI5MCIgY3k9Ijg2IiByPSI1MiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMTg1RkE1IiBzdHJva2Utd2lkdGg9IjciLz48bGluZSB4MT0iOTAiIHkxPSI0MCIgeDI9IjkwIiB5Mj0iNTAiIHN0cm9rZT0iIzE4NUZBNSIgc3Ryb2tlLXdpZHRoPSI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMTM2IiB5MT0iODYiIHgyPSIxMjYiIHkyPSI4NiIgc3Ryb2tlPSIjMTg1RkE1IiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjkwIiB5MT0iMTMyIiB4Mj0iOTAiIHkyPSIxMjIiIHN0cm9rZT0iIzE4NUZBNSIgc3Ryb2tlLXdpZHRoPSIzLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxsaW5lIHgxPSI0NCIgeTE9Ijg2IiB4Mj0iNTQiIHkyPSI4NiIgc3Ryb2tlPSIjMTg1RkE1IiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjkwIiB5MT0iODYiIHgyPSI2NiIgeTI9IjcyIiBzdHJva2U9IiMxODVGQTUiIHN0cm9rZS13aWR0aD0iNyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjkwIiB5MT0iODYiIHgyPSIxMjYiIHkyPSI2NSIgc3Ryb2tlPSIjMTg1RkE1IiBzdHJva2Utd2lkdGg9IjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxjaXJjbGUgY3g9IjkwIiBjeT0iODYiIHI9IjYiIGZpbGw9IiMxODVGQTUiLz48cmVjdCB4PSI2MiIgeT0iMTE4IiB3aWR0aD0iNTYiIGhlaWdodD0iMTgiIHJ4PSI5IiBmaWxsPSIjMTg1RkE1IiBmaWxsLW9wYWNpdHk9IjAuMTIiLz48dGV4dCB4PSI5MCIgeT0iMTMxIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjMTg1RkE1IiBmb250LWZhbWlseT0iLWFwcGxlLXN5c3RlbSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjExIiBmb250LXdlaWdodD0iNzAwIiBsZXR0ZXItc3BhY2luZz0iMC41Ij5rcjwvdGV4dD48L3N2Zz4=">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --blue:#185FA5;--blue-mid:#378ADD;--blue-light:#E6F1FB;--blue-dark:#0C447C;
+  --bg:#fff;--bg2:#F4F6F9;--bg3:#EEF1F5;
+  --text:#111827;--text2:#6B7280;--text3:#9CA3AF;
+  --border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.06);
+  --radius:12px;--radius-sm:8px;
+  --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#111827;--bg2:#1F2937;--bg3:#374151;
+  --text:#F9FAFB;--text2:#9CA3AF;--text3:#6B7280;
+  --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.06);
+  --blue-light:#0c2d4a;
+}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg3);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);}
+body{display:flex;flex-direction:column;}
+#shell{display:flex;flex-direction:column;height:100%;max-width:520px;margin:0 auto;width:100%;background:var(--bg3);}
+#scroll-area{flex:1;overflow-y:auto;padding:12px 14px;padding-top:calc(12px + var(--safe-top));}
+#nav{display:flex;background:var(--bg);border-top:0.5px solid var(--border);padding-bottom:var(--safe-bot);flex-shrink:0;}
+.nav-btn{flex:1;border:none;background:transparent;color:var(--text2);cursor:pointer;padding:8px 4px 6px;font-family:inherit;font-size:10px;line-height:1.4;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .15s;}
+.nav-btn i{font-size:22px;}
+.nav-btn.on{color:var(--blue);}
+.top-card{background:var(--blue);border-radius:var(--radius);padding:18px 20px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-end;}
+.top-label{font-size:11px;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+.top-val{font-size:34px;font-weight:600;color:white;line-height:1;}
+.top-side{text-align:right;display:flex;flex-direction:column;gap:8px;}
+.top-side-item .side-label{font-size:10px;color:rgba(255,255,255,.65);}
+.top-side-item .side-val{font-size:15px;font-weight:500;color:white;}
+.card{background:var(--bg);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;border:0.5px solid var(--border2);}
+.card-title{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--text);}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.field label{display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:500;}
+input,select,textarea{width:100%;font-family:inherit;font-size:15px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text);outline:none;appearance:none;-webkit-appearance:none;}
+input:focus,select:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(55,138,221,.15);}
+.hm{display:flex;gap:6px;}
+.hm select{flex:1;}
+.btn-p{background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);padding:12px;font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;width:100%;margin-top:4px;}
+.btn-p:active{transform:scale(.98);background:var(--blue-dark);}
+.period-row{display:flex;gap:6px;margin-bottom:10px;}
+.pbtn{padding:7px 14px;border:0.5px solid var(--border);background:var(--bg);color:var(--text2);border-radius:20px;cursor:pointer;font-size:13px;font-family:inherit;}
+.pbtn.on{background:var(--blue-light);color:var(--blue);border-color:var(--blue-mid);font-weight:500;}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.metric{background:var(--bg);border-radius:var(--radius-sm);padding:12px 14px;border:0.5px solid var(--border2);}
+.metric.hi{background:var(--blue-light);}
+.metric .mlabel{font-size:11px;color:var(--text2);margin-bottom:5px;}
+.metric.hi .mlabel{color:var(--blue);}
+.metric .mval{font-size:20px;font-weight:600;color:var(--text);}
+.metric.hi .mval{color:var(--blue);}
+.list-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.list{display:flex;flex-direction:column;gap:7px;}
+.item{background:var(--bg);border-radius:var(--radius-sm);border:0.5px solid var(--border2);overflow:hidden;}
+.item-row{display:flex;align-items:center;gap:10px;padding:11px 13px;}
+.iinfo{flex:1;min-width:0;}
+.idate{font-size:11px;color:var(--text2);margin-bottom:2px;}
+.idesc{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
+.iamt{text-align:right;flex-shrink:0;}
+.iamt-main{font-size:14px;font-weight:600;color:var(--blue);}
+.iamt-sub{font-size:11px;color:var(--text2);}
+.iact{display:flex;gap:2px;flex-shrink:0;}
+.ibtn{background:none;border:none;cursor:pointer;padding:6px;color:var(--text3);font-size:18px;border-radius:6px;}
+.ibtn:active{background:var(--bg2);color:var(--text);}
+.ibtn.del:active{color:#A32D2D;}
+.edit-form{padding:10px 13px 12px;border-top:0.5px solid var(--border2);background:var(--bg2);}
+.ef-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.ef-btns{display:flex;gap:8px;margin-top:8px;}
+.ef-save{flex:1;background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);padding:10px;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;}
+.ef-cancel{padding:10px 16px;border:0.5px solid var(--border);background:var(--bg);border-radius:var(--radius-sm);cursor:pointer;font-size:14px;color:var(--text2);font-family:inherit;}
+.empty{text-align:center;padding:3rem 1rem;color:var(--text2);}
+.empty i{font-size:36px;display:block;margin-bottom:10px;opacity:.4;}
+.empty p{font-size:14px;}
+.xbtn{display:flex;align-items:center;gap:10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;cursor:pointer;font-size:14px;color:var(--text);font-family:inherit;width:100%;margin-bottom:8px;}
+.xbtn i{font-size:20px;color:var(--blue);}
+.xbtn:active{background:var(--bg3);}
+.note{font-size:12px;color:var(--text2);line-height:1.6;margin-top:8px;}
+.rate-current{display:flex;align-items:baseline;gap:8px;margin-bottom:14px;}
+.rate-big{font-size:28px;font-weight:700;color:var(--blue);}
+.rate-label{font-size:13px;color:var(--text2);}
+.rate-history{margin-top:14px;}
+.rate-history-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.rate-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border2);font-size:13px;}
+.rate-row:last-child{border-bottom:none;}
+.rate-row .r-date{color:var(--text2);}
+.rate-row .r-val{font-weight:600;color:var(--text);}
+.rate-row.current .r-val{color:var(--blue);}
+.rate-row.current .r-date::before{content:"Nåværende · ";}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:100;}
+.modal{background:var(--bg);border-radius:var(--radius) var(--radius) 0 0;padding:20px 16px calc(20px + var(--safe-bot));width:100%;max-width:520px;}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:12px;}
+.modal textarea{height:160px;font-size:12px;font-family:monospace;resize:none;}
+.modal-btns{display:flex;gap:8px;margin-top:12px;}
+.modal-btns .btn-p{margin-top:0;}
+.modal-close{padding:12px;border:0.5px solid var(--border);background:var(--bg2);border-radius:var(--radius-sm);cursor:pointer;font-size:14px;color:var(--text);font-family:inherit;}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div id="scroll-area">
+    <div id="top-card-el"></div>
+    <div id="content"></div>
+  </div>
+  <nav id="nav"></nav>
+</div>
+<div id="modal-container"></div>
+
+<script>
+const LS = {
+  get: k => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+function migrateSettings(s) {
+  if (!s) return { rateHistory: [{ rate: 500, from: '2000-01-01' }] };
+  if (s.hourlyRate && !s.rateHistory) {
+    return { rateHistory: [{ rate: s.hourlyRate, from: '2000-01-01' }] };
+  }
+  return s;
+}
+
+let S = {
+  entries: LS.get('ta:e') || [],
+  payments: LS.get('ta:p') || [],
+  settings: migrateSettings(LS.get('ta:s')),
+  tab: 'hours', period: 'month', editE: null, editP: null
+};
+
+const save = () => { LS.set('ta:e', S.entries); LS.set('ta:p', S.payments); LS.set('ta:s', S.settings); };
+
+const fmtKr = n => Math.round(n).toLocaleString('nb-NO') + ' kr';
+const fmtH = h => { const hrs = Math.floor(h), m = Math.round((h - hrs) * 60); return m > 0 ? `${hrs}t ${m}m` : `${hrs}t`; };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+const today = () => new Date().toISOString().slice(0, 10);
+const fmtDate = d => new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+const fmtDateShort = d => new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+
+function rateForDate(date) {
+  const hist = [...S.settings.rateHistory].sort((a, b) => a.from.localeCompare(b.from));
+  let rate = hist[0].rate;
+  for (const h of hist) {
+    if (h.from <= date) rate = h.rate;
+    else break;
+  }
+  return rate;
+}
+
+function currentRate() {
+  const hist = [...S.settings.rateHistory].sort((a, b) => a.from.localeCompare(b.from));
+  return hist[hist.length - 1].rate;
+}
+
+function inPeriod(items, key) {
+  const now = new Date();
+  if (S.period === 'week') {
+    const day = now.getDay() || 7, mon = new Date(now);
+    mon.setDate(now.getDate() - day + 1); mon.setHours(0, 0, 0, 0);
+    return items.filter(i => new Date(i[key]) >= mon);
+  }
+  if (S.period === 'all') return items;
+  return items.filter(i => i[key].slice(0, 7) === now.toISOString().slice(0, 7));
+}
+
+function totals() {
+  const earned = S.entries.reduce((s, e) => s + e.hours * rateForDate(e.date), 0);
+  const paid = S.payments.reduce((s, p) => s + p.amount, 0);
+  return { earned, paid, outstanding: earned - paid };
+}
+
+function render() { renderTop(); renderNav(); renderContent(); }
+
+function renderTop() {
+  const { earned, paid, outstanding } = totals();
+  document.getElementById('top-card-el').innerHTML = `
+    <div class="top-card">
+      <div>
+        <div class="top-label">Til gode</div>
+        <div class="top-val">${fmtKr(outstanding)}</div>
+      </div>
+      <div class="top-side">
+        <div class="top-side-item"><div class="side-label">Opptjent</div><div class="side-val">${fmtKr(earned)}</div></div>
+        <div class="top-side-item"><div class="side-label">Utbetalt</div><div class="side-val">${fmtKr(paid)}</div></div>
+      </div>
+    </div>`;
+}
+
+function renderNav() {
+  const tabs = [
+    { id: 'hours', icon: 'ti-clock', label: 'Timer' },
+    { id: 'payments', icon: 'ti-coin', label: 'Utbetalinger' },
+    { id: 'overview', icon: 'ti-chart-bar', label: 'Oversikt' },
+    { id: 'settings', icon: 'ti-settings', label: 'Innstillinger' }
+  ];
+  document.getElementById('nav').innerHTML = tabs.map(t =>
+    `<button class="nav-btn${S.tab === t.id ? ' on' : ''}" onclick="setTab('${t.id}')">
+      <i class="ti ${t.icon}"></i>${t.label}
+    </button>`).join('');
+}
+
+const hoursOpts = (sel = 0) => Array.from({ length: 25 }, (_, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${i}</option>`).join('');
+const minsOpts = (sel = 0) => Array.from({ length: 12 }, (_, i) => i * 5).map(m => `<option value="${m}"${m === sel ? ' selected' : ''}>${String(m).padStart(2, '0')}</option>`).join('');
+
+function renderContent() {
+  const el = document.getElementById('content');
+  if (S.tab === 'hours') el.innerHTML = tabHours();
+  else if (S.tab === 'payments') el.innerHTML = tabPayments();
+  else if (S.tab === 'overview') { el.innerHTML = tabOverview(); renderChart(); }
+  else el.innerHTML = tabSettings();
+}
+
+function tabHours() {
+  const fil = inPeriod(S.entries, 'date');
+  const ph = fil.reduce((s, e) => s + e.hours, 0);
+  const pamt = fil.reduce((s, e) => s + e.hours * rateForDate(e.date), 0);
+  const sorted = [...S.entries].sort((a, b) => b.date.localeCompare(a.date));
+
+  const items = sorted.map(e => {
+    const r = rateForDate(e.date);
+    if (S.editE === e.id) {
+      const hrs = Math.floor(e.hours), mins = Math.round((e.hours - hrs) * 60);
+      return `<div class="item">
+        <div class="item-row">
+          <div class="iinfo"><div class="idate">${fmtDate(e.date)}</div><div class="idesc">${e.description || '—'}</div></div>
+          <div class="iact"><button class="ibtn del" onclick="cancelEditE()"><i class="ti ti-x"></i></button></div>
+        </div>
+        <div class="edit-form">
+          <div class="ef-row">
+            <div class="field"><label>Dato</label><input type="date" id="ee-date" value="${e.date}"></div>
+            <div class="field"><label>Timer / min</label><div class="hm"><select id="ee-h">${hoursOpts(hrs)}</select><select id="ee-m">${minsOpts(mins)}</select></div></div>
+          </div>
+          <div class="field"><label>Beskrivelse</label><input type="text" id="ee-desc" value="${e.description || ''}"></div>
+          <div class="ef-btns">
+            <button class="ef-save" onclick="saveEditE('${e.id}')">Lagre</button>
+            <button class="ef-cancel" onclick="cancelEditE()">Avbryt</button>
+          </div>
+        </div>
+      </div>`;
+    }
+    return `<div class="item">
+      <div class="item-row">
+        <div class="iinfo"><div class="idate">${fmtDate(e.date)}</div><div class="idesc">${e.description || '—'}</div></div>
+        <div class="iamt">
+          <div class="iamt-main">${fmtH(e.hours)}</div>
+          <div class="iamt-sub">${fmtKr(e.hours * r)} · ${r.toLocaleString('nb-NO')} kr/t</div>
+        </div>
+        <div class="iact">
+          <button class="ibtn" onclick="startEditE('${e.id}')" aria-label="Rediger"><i class="ti ti-edit"></i></button>
+          <button class="ibtn del" onclick="delE('${e.id}')" aria-label="Slett"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div class="card-title">Registrer timer</div>
+      <div class="row2">
+        <div class="field"><label>Dato</label><input type="date" id="e-date" value="${today()}"></div>
+        <div class="field"><label>Timer / minutter</label><div class="hm"><select id="e-h">${hoursOpts()}</select><select id="e-m">${minsOpts()}</select></div></div>
+      </div>
+      <div class="field" style="margin-bottom:10px"><label>Beskrivelse</label><input type="text" id="e-desc" placeholder="Hva jobbet du med?"></div>
+      <button class="btn-p" onclick="addE()">Legg til timer</button>
+    </div>
+    <div class="period-row">
+      <button class="pbtn${S.period === 'week' ? ' on' : ''}" onclick="setPeriod('week')">Denne uken</button>
+      <button class="pbtn${S.period === 'month' ? ' on' : ''}" onclick="setPeriod('month')">Denne måneden</button>
+      <button class="pbtn${S.period === 'all' ? ' on' : ''}" onclick="setPeriod('all')">Alt</button>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="mlabel">Timer</div><div class="mval">${fmtH(ph)}</div></div>
+      <div class="metric"><div class="mlabel">Beløp</div><div class="mval">${fmtKr(pamt)}</div></div>
+    </div>
+    <div class="list-title">Registreringer</div>
+    <div class="list">${sorted.length === 0
+      ? `<div class="empty"><i class="ti ti-clock"></i><p>Ingen timer registrert ennå</p></div>`
+      : items}</div>`;
+}
+
+function tabPayments() {
+  const sorted = [...S.payments].sort((a, b) => b.date.localeCompare(a.date));
+  const items = sorted.map(p => {
+    if (S.editP === p.id) {
+      return `<div class="item">
+        <div class="item-row">
+          <div class="iinfo"><div class="idate">${fmtDate(p.date)}</div><div class="idesc">${p.description || '—'}</div></div>
+          <div class="iact"><button class="ibtn del" onclick="cancelEditP()"><i class="ti ti-x"></i></button></div>
+        </div>
+        <div class="edit-form">
+          <div class="ef-row">
+            <div class="field"><label>Dato</label><input type="date" id="ep-date" value="${p.date}"></div>
+            <div class="field"><label>Beløp (kr)</label><input type="number" id="ep-amt" value="${p.amount}" min="0"></div>
+          </div>
+          <div class="field"><label>Beskrivelse</label><input type="text" id="ep-desc" value="${p.description || ''}"></div>
+          <div class="ef-btns">
+            <button class="ef-save" onclick="saveEditP('${p.id}')">Lagre</button>
+            <button class="ef-cancel" onclick="cancelEditP()">Avbryt</button>
+          </div>
+        </div>
+      </div>`;
+    }
+    return `<div class="item">
+      <div class="item-row">
+        <div class="iinfo"><div class="idate">${fmtDate(p.date)}</div><div class="idesc">${p.description || '—'}</div></div>
+        <div class="iamt"><div class="iamt-main">${fmtKr(p.amount)}</div></div>
+        <div class="iact">
+          <button class="ibtn" onclick="startEditP('${p.id}')" aria-label="Rediger"><i class="ti ti-edit"></i></button>
+          <button class="ibtn del" onclick="delP('${p.id}')" aria-label="Slett"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div class="card-title">Registrer utbetaling</div>
+      <div class="row2">
+        <div class="field"><label>Dato</label><input type="date" id="p-date" value="${today()}"></div>
+        <div class="field"><label>Beløp (kr)</label><input type="number" id="p-amt" placeholder="0" min="0"></div>
+      </div>
+      <div class="field" style="margin-bottom:10px"><label>Beskrivelse (valgfritt)</label><input type="text" id="p-desc" placeholder="F.eks. lønn april"></div>
+      <button class="btn-p" onclick="addP()">Legg til utbetaling</button>
+    </div>
+    <div class="list-title">Utbetalinger</div>
+    <div class="list">${sorted.length === 0
+      ? `<div class="empty"><i class="ti ti-coin"></i><p>Ingen utbetalinger registrert</p></div>`
+      : items}</div>`;
+}
+
+let chartInst = null;
+function tabOverview() {
+  const { earned, paid, outstanding } = totals();
+  const th = S.entries.reduce((s, e) => s + e.hours, 0);
+  return `
+    <div class="metrics">
+      <div class="metric"><div class="mlabel">Totalt timer</div><div class="mval">${fmtH(th)}</div></div>
+      <div class="metric"><div class="mlabel">Totalt opptjent</div><div class="mval">${fmtKr(earned)}</div></div>
+      <div class="metric"><div class="mlabel">Utbetalt</div><div class="mval">${fmtKr(paid)}</div></div>
+      <div class="metric hi"><div class="mlabel">Til gode</div><div class="mval">${fmtKr(outstanding)}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Månedsoversikt – siste 6 måneder</div>
+      <div style="display:flex;gap:12px;font-size:12px;color:var(--text2);margin-bottom:12px;">
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#378ADD;display:inline-block;"></span>Opptjent</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#B5D4F4;display:inline-block;"></span>Utbetalt</span>
+      </div>
+      <div style="position:relative;height:220px;"><canvas id="mchart"></canvas></div>
+    </div>`;
+}
+
+function renderChart() {
+  const canvas = document.getElementById('mchart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+    return { key: d.toISOString().slice(0, 7), label: d.toLocaleDateString('nb-NO', { month: 'short', year: '2-digit' }) };
+  });
+  const earned = months.map(m => Math.round(S.entries.filter(e => e.date.startsWith(m.key)).reduce((s, e) => s + e.hours * rateForDate(e.date), 0)));
+  const paid = months.map(m => Math.round(S.payments.filter(p => p.date.startsWith(m.key)).reduce((s, p) => s + p.amount, 0)));
+  chartInst = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: months.map(m => m.label),
+      datasets: [
+        { label: 'Opptjent', data: earned, backgroundColor: '#378ADD', borderRadius: 5, borderSkipped: false },
+        { label: 'Utbetalt', data: paid, backgroundColor: '#B5D4F4', borderRadius: 5, borderSkipped: false }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + Math.round(ctx.raw).toLocaleString('nb-NO') + ' kr' } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: { grid: { color: 'rgba(128,128,128,0.1)' }, ticks: { callback: v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v, font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function tabSettings() {
+  const cr = currentRate();
+  const hist = [...S.settings.rateHistory].sort((a, b) => b.from.localeCompare(a.from));
+  const histRows = hist.map((h, i) => `
+    <div class="rate-row${i === 0 ? ' current' : ''}">
+      <span class="r-date">${i === 0 ? today() >= h.from ? h.from === '2000-01-01' ? 'Fra starten' : fmtDateShort(h.from) : fmtDateShort(h.from) : fmtDateShort(h.from)}</span>
+      <span class="r-val">${h.rate.toLocaleString('nb-NO')} kr/t</span>
+    </div>`).join('');
+
+  return `
+    <div class="card">
+      <div class="card-title">Timelønn</div>
+      <div class="rate-current">
+        <span class="rate-big">${cr.toLocaleString('nb-NO')}</span>
+        <span class="rate-label">kr / time (nåværende)</span>
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Ny timelønn fra i dag (kr/t)</label>
+        <input type="number" id="rate-input" placeholder="${cr}" min="0" step="10">
+      </div>
+      <button class="btn-p" onclick="saveRate()">Sett ny timelønn</button>
+      ${hist.length > 0 ? `
+        <div class="rate-history">
+          <div class="rate-history-title">Historikk</div>
+          ${histRows}
+        </div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Eksport og import</div>
+      <button class="xbtn" onclick="exportData()"><i class="ti ti-download"></i> Eksporter data (JSON-backup)</button>
+      <button class="xbtn" onclick="document.getElementById('imp').click()"><i class="ti ti-upload"></i> Importer data fra JSON</button>
+      <input type="file" id="imp" accept=".json" style="display:none" onchange="importData(this)">
+      <p class="note">Eksporter jevnlig som sikkerhetskopi. Import slår sammen data – eksisterende oppføringer beholdes.</p>
+    </div>
+`;
+}
+
+function setTab(t) { S.tab = t; S.editE = null; S.editP = null; render(); document.getElementById('scroll-area').scrollTop = 0; }
+function setPeriod(p) { S.period = p; renderContent(); }
+
+function addE() {
+  const date = document.getElementById('e-date').value;
+  const h = parseInt(document.getElementById('e-h').value) || 0;
+  const m = parseInt(document.getElementById('e-m').value) || 0;
+  if (!date || (h + m) === 0) { alert('Velg dato og minst 5 minutter'); return; }
+  S.entries.push({ id: uid(), date, hours: h + m / 60, description: (document.getElementById('e-desc').value || '').trim() });
+  save(); render();
+}
+function delE(id) { if (!confirm('Slett denne registreringen?')) return; S.entries = S.entries.filter(e => e.id !== id); save(); render(); }
+function startEditE(id) { S.editE = id; renderContent(); }
+function cancelEditE() { S.editE = null; renderContent(); }
+function saveEditE(id) {
+  const e = S.entries.find(x => x.id === id); if (!e) return;
+  const h = parseInt(document.getElementById('ee-h').value) || 0;
+  const m = parseInt(document.getElementById('ee-m').value) || 0;
+  if (!document.getElementById('ee-date').value || (h + m) === 0) { alert('Velg dato og tid'); return; }
+  e.date = document.getElementById('ee-date').value;
+  e.hours = h + m / 60;
+  e.description = (document.getElementById('ee-desc').value || '').trim();
+  S.editE = null; save(); render();
+}
+
+function addP() {
+  const date = document.getElementById('p-date').value;
+  const amount = parseFloat(document.getElementById('p-amt').value);
+  if (!date || isNaN(amount) || amount <= 0) { alert('Fyll inn dato og beløp'); return; }
+  S.payments.push({ id: uid(), date, amount, description: (document.getElementById('p-desc').value || '').trim() });
+  save(); render();
+}
+function delP(id) { if (!confirm('Slett denne utbetalingen?')) return; S.payments = S.payments.filter(p => p.id !== id); save(); render(); }
+function startEditP(id) { S.editP = id; renderContent(); }
+function cancelEditP() { S.editP = null; renderContent(); }
+function saveEditP(id) {
+  const p = S.payments.find(x => x.id === id); if (!p) return;
+  const amount = parseFloat(document.getElementById('ep-amt').value);
+  if (!document.getElementById('ep-date').value || isNaN(amount) || amount <= 0) { alert('Fyll inn dato og beløp'); return; }
+  p.date = document.getElementById('ep-date').value;
+  p.amount = amount;
+  p.description = (document.getElementById('ep-desc').value || '').trim();
+  S.editP = null; save(); render();
+}
+
+function saveRate() {
+  const v = parseFloat(document.getElementById('rate-input').value);
+  if (isNaN(v) || v <= 0) { alert('Skriv inn en gyldig timelønn'); return; }
+  const t = today();
+  const existing = S.settings.rateHistory.find(h => h.from === t);
+  if (existing) {
+    existing.rate = v;
+  } else {
+    S.settings.rateHistory.push({ rate: v, from: t });
+  }
+  save(); renderContent();
+}
+
+function exportData() {
+  const json = JSON.stringify({ entries: S.entries, payments: S.payments, settings: S.settings, exportedAt: new Date().toISOString() }, null, 2);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS) {
+    showExportModal(json);
+  } else {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'timeapp-backup-' + today() + '.json'; a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+function showExportModal(json) {
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-title">Eksporter data</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:10px;">Kopier JSON-teksten og lagre den som backup.</p>
+        <textarea readonly onclick="this.select()">${json.replace(/</g, '&lt;')}</textarea>
+        <div class="modal-btns">
+          <button class="btn-p" onclick="copyExport(this)">Kopier til utklippstavle</button>
+          <button class="modal-close" onclick="closeModal()">Lukk</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function copyExport(btn) {
+  const ta = document.querySelector('#modal-container textarea');
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(ta.value).then(() => { btn.textContent = '✓ Kopiert!'; setTimeout(() => btn.textContent = 'Kopier til utklippstavle', 2000); });
+  } else { ta.select(); document.execCommand('copy'); btn.textContent = '✓ Kopiert!'; }
+}
+
+function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+function importData(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.entries || !data.payments) { alert('Ugyldig fil – mangler data'); return; }
+      const newE = data.entries.filter(e => !S.entries.find(x => x.id === e.id));
+      const newP = data.payments.filter(p => !S.payments.find(x => x.id === p.id));
+      if (!confirm(`Importer ${newE.length} nye timeregistreringer og ${newP.length} nye utbetalinger?`)) return;
+      S.entries = [...S.entries, ...newE];
+      S.payments = [...S.payments, ...newP];
+      if (data.settings) S.settings = migrateSettings(data.settings);
+      save(); render(); alert('Import fullført!');
+    } catch (err) { alert('Kunne ikke lese filen: ' + err.message); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+render();
+</script>
+</body>
+</html>
