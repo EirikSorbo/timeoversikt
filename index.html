@@ -165,11 +165,18 @@ input:focus,select:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(
 <div id="modal-container"></div>
 
 <script>
-const APP_VERSION = "1.10";
+const APP_VERSION = "1.11";
 const LS = {
   get: k => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }
 };
+
+let storageWarned = false;
+function warnStorage() {
+  if (storageWarned) return;
+  storageWarned = true;
+  alert('Kunne ikke lagre på denne enheten. Lagringen kan være full, eller nettleseren kjører i privat modus. Eksporter dataene dine nå, ellers kan endringer gå tapt.');
+}
 
 const EMP_COLORS = ['#378ADD', '#0E7C66', '#B45309', '#7C3AED', '#BE185D', '#0E8AA5', '#4D7C0F', '#BE123C'];
 
@@ -188,51 +195,127 @@ function migrateSettings(s) {
   return s;
 }
 
-function normalizeEmployers(list) {
-  list.forEach((e, i) => {
-    if (!e.id) e.id = uid();
-    if (!e.name) e.name = 'Arbeidsgiver ' + (i + 1);
-    if (!e.color) e.color = EMP_COLORS[i % EMP_COLORS.length];
-    if (!Array.isArray(e.rateHistory) || !e.rateHistory.length) e.rateHistory = [{ rate: 0, from: '2000-01-01' }];
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
+const asStr = v => typeof v === 'string' ? v : '';
+const asNum = v => { const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? n : null; };
+
+function cleanRateHistory(list) {
+  const clean = (Array.isArray(list) ? list : [])
+    .filter(h => h && ISO_DATE.test(asStr(h.from)) && asNum(h.rate) !== null && asNum(h.rate) >= 0)
+    .map(h => ({ rate: asNum(h.rate), from: h.from }));
+  return clean.length ? clean : null;
+}
+
+// Én felles validering for både oppstart og import. Alt som slipper gjennom her
+// er trygt å regne på og trygt å skrive inn i HTML, slik at en ødelagt eller
+// håndredigert fil aldri kan sette appen i en tilstand som kaster.
+function sanitizeData(rawEmployers, rawEntries, rawPayments, knownIds) {
+  const skipped = { employers: 0, entries: 0, payments: 0 };
+  const seenEmp = new Set(), seenE = new Set(), seenP = new Set();
+
+  const employers = [];
+  (Array.isArray(rawEmployers) ? rawEmployers : []).forEach((e, i) => {
+    if (!e || typeof e !== 'object') { skipped.employers++; return; }
+    let id = asStr(e.id);
+    if (!SAFE_ID.test(id) || seenEmp.has(id)) id = uid();
+    seenEmp.add(id);
+    employers.push({
+      id,
+      name: asStr(e.name).trim().slice(0, 60) || 'Arbeidsgiver ' + (i + 1),
+      color: HEX_COLOR.test(asStr(e.color)) ? e.color : EMP_COLORS[i % EMP_COLORS.length],
+      rateHistory: cleanRateHistory(e.rateHistory) || [{ rate: 0, from: '2000-01-01' }]
+    });
   });
-  return list;
+
+  const kjente = employers.map(e => e.id).concat(Array.isArray(knownIds) ? knownIds : []);
+
+  const entries = [];
+  (Array.isArray(rawEntries) ? rawEntries : []).forEach(e => {
+    const hours = e && typeof e === 'object' ? asNum(e.hours) : null;
+    if (!e || typeof e !== 'object' || !ISO_DATE.test(asStr(e.date)) || hours === null || hours <= 0) { skipped.entries++; return; }
+    let id = asStr(e.id);
+    if (!SAFE_ID.test(id) || seenE.has(id)) id = uid();
+    seenE.add(id);
+    entries.push({ id, employerId: kjente.includes(asStr(e.employerId)) ? e.employerId : '',
+                   date: e.date, hours, description: asStr(e.description) });
+  });
+
+  const payments = [];
+  (Array.isArray(rawPayments) ? rawPayments : []).forEach(p => {
+    const amount = p && typeof p === 'object' ? asNum(p.amount) : null;
+    if (!p || typeof p !== 'object' || !ISO_DATE.test(asStr(p.date)) || amount === null) { skipped.payments++; return; }
+    let id = asStr(p.id);
+    if (!SAFE_ID.test(id) || seenP.has(id)) id = uid();
+    seenP.add(id);
+    payments.push({ id, employerId: kjente.includes(asStr(p.employerId)) ? p.employerId : '',
+                    date: p.date, amount, description: asStr(p.description) });
+  });
+
+  return { employers, entries, payments, skipped };
 }
 
 function loadState() {
-  const entries = LS.get('ta:e') || [];
-  const payments = LS.get('ta:p') || [];
-  let employers = LS.get('ta:emp');
-  if (!Array.isArray(employers) || !employers.length) {
+  const d = sanitizeData(LS.get('ta:emp'), LS.get('ta:e'), LS.get('ta:p'));
+  if (!d.employers.length) {
     // Første gang: lag én arbeidsgiver av den gamle, globale timelønn-historikken
-    employers = [{ id: uid(), name: 'Min arbeidsgiver', color: EMP_COLORS[0], rateHistory: migrateSettings(LS.get('ta:s')).rateHistory }];
+    let legacy = null;
+    try { legacy = cleanRateHistory(migrateSettings(LS.get('ta:s')).rateHistory); } catch { legacy = null; }
+    d.employers.push({ id: uid(), name: 'Min arbeidsgiver', color: EMP_COLORS[0],
+                       rateHistory: legacy || [{ rate: 100, from: '2000-01-01' }] });
   }
-  normalizeEmployers(employers);
-  const ids = employers.map(e => e.id);
+  const ids = d.employers.map(e => e.id);
   const fallback = ids[0];
-  entries.forEach(e => { if (!e.employerId || !ids.includes(e.employerId)) e.employerId = fallback; });
-  payments.forEach(p => { if (!p.employerId || !ids.includes(p.employerId)) p.employerId = fallback; });
-  let active = LS.get('ta:active') || 'all';
+  d.entries.forEach(e => { if (!e.employerId) e.employerId = fallback; });
+  d.payments.forEach(p => { if (!p.employerId) p.employerId = fallback; });
+  let active = asStr(LS.get('ta:active')) || 'all';
   if (active !== 'all' && !ids.includes(active)) active = 'all';
-  let last = LS.get('ta:last');
+  let last = asStr(LS.get('ta:last'));
   if (!ids.includes(last)) last = fallback;
-  return { employers, entries, payments, activeEmployer: active, lastEmployer: last,
+  return { employers: d.employers, entries: d.entries, payments: d.payments,
+           activeEmployer: active, lastEmployer: last, skipped: d.skipped,
            tab: 'hours', period: 'month', editE: null, editP: null, editEmp: null };
 }
 
-let S = loadState();
-normalizeActive();
+let S, bootFeil = null;
+try { S = loadState(); normalizeActive(); }
+catch (err) {
+  bootFeil = err;
+  S = { employers: [], entries: [], payments: [], activeEmployer: 'all', lastEmployer: null,
+        skipped: { employers: 0, entries: 0, payments: 0 },
+        tab: 'hours', period: 'month', editE: null, editP: null, editEmp: null };
+}
 
 const save = () => {
-  LS.set('ta:e', S.entries); LS.set('ta:p', S.payments); LS.set('ta:emp', S.employers);
-  LS.set('ta:active', S.activeEmployer); LS.set('ta:last', S.lastEmployer);
+  const ok = [
+    LS.set('ta:e', S.entries), LS.set('ta:p', S.payments), LS.set('ta:emp', S.employers),
+    LS.set('ta:active', S.activeEmployer), LS.set('ta:last', S.lastEmployer)
+  ].every(Boolean);
+  if (!ok) warnStorage();
 };
+
+// Tar vare på den uleste originalen før appen skriver en renset versjon over den
+function backupRaw() {
+  try {
+    if (localStorage.getItem('ta:raw-backup')) return;
+    localStorage.setItem('ta:raw-backup', JSON.stringify({
+      at: new Date().toISOString(),
+      emp: localStorage.getItem('ta:emp'), e: localStorage.getItem('ta:e'),
+      p: localStorage.getItem('ta:p'), s: localStorage.getItem('ta:s')
+    }));
+  } catch {}
+}
 
 function empById(id) { return S.employers.find(e => e.id === id) || null; }
 function empName(id) { const e = empById(id); return e ? e.name : 'Ukjent'; }
 function empColor(id) { const e = empById(id); return e ? e.color : '#9CA3AF'; }
 function isAll() { return S.activeEmployer === 'all'; }
 function isMulti() { return S.employers.length > 1; }
-function defaultEmployerId() { return isAll() ? (empById(S.lastEmployer) ? S.lastEmployer : S.employers[0].id) : S.activeEmployer; }
+function defaultEmployerId() {
+  if (!S.employers.length) return null;
+  return isAll() ? (empById(S.lastEmployer) ? S.lastEmployer : S.employers[0].id) : S.activeEmployer;
+}
 function scopedEntries() { return isAll() ? S.entries : S.entries.filter(e => e.employerId === S.activeEmployer); }
 function scopedPayments() { return isAll() ? S.payments : S.payments.filter(p => p.employerId === S.activeEmployer); }
 function normalizeActive() {
@@ -791,10 +874,19 @@ function saveEmpName(id) {
   save(); render();
 }
 
+// Beholder et navn brukeren har skrevet, men ikke lagret, gjennom en ny render
+function keepNameDraft(id, fn) {
+  const el = document.getElementById('emp-name-' + id);
+  const utkast = el ? el.value : null;
+  fn();
+  const etter = document.getElementById('emp-name-' + id);
+  if (etter && utkast !== null) etter.value = utkast;
+}
+
 function setEmpColor(id, color) {
   const emp = empById(id); if (!emp) return;
   emp.color = color;
-  save(); render();
+  keepNameDraft(id, () => { save(); render(); });
 }
 
 function showAddEmployer() {
@@ -864,7 +956,7 @@ function saveRate(empId) {
   } else {
     emp.rateHistory.push({ rate: v, from });
   }
-  save(); render();
+  keepNameDraft(empId, () => { save(); render(); });
 }
 
 function deleteRate(empId, from) {
@@ -872,7 +964,7 @@ function deleteRate(empId, from) {
   if (emp.rateHistory.length <= 1) return;
   if (!confirm('Slett denne timelønnen fra historikken? Timer i denne perioden regnes om til satsen som gjaldt før.')) return;
   emp.rateHistory = emp.rateHistory.filter(h => h.from !== from);
-  save(); render();
+  keepNameDraft(empId, () => { save(); render(); });
 }
 
 function exportData() {
@@ -919,29 +1011,33 @@ function importData(input) {
   reader.onload = ev => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (!Array.isArray(data.entries) || !Array.isArray(data.payments)) { alert('Ugyldig fil – mangler data'); return; }
-      const incomingEmps = Array.isArray(data.employers) ? data.employers : [];
-      const legacy = incomingEmps.length === 0;
+      if (!data || typeof data !== 'object' || !Array.isArray(data.entries) || !Array.isArray(data.payments)) {
+        alert('Ugyldig fil – mangler data'); return;
+      }
+      const legacy = !Array.isArray(data.employers) || data.employers.length === 0;
       const target = defaultEmployerId();
-      const newEmps = incomingEmps.filter(e => e && e.id && !S.employers.find(x => x.id === e.id));
-      const newE = data.entries.filter(e => !S.entries.find(x => x.id === e.id));
-      const newP = data.payments.filter(p => !S.payments.find(x => x.id === p.id));
+      // Samme validering som ved oppstart: ugyldige poster slipper aldri inn i appen
+      const ren = sanitizeData(data.employers, data.entries, data.payments, S.employers.map(e => e.id));
+      const newEmps = ren.employers.filter(e => !S.employers.find(x => x.id === e.id));
+      const newE = ren.entries.filter(e => !S.entries.find(x => x.id === e.id));
+      const newP = ren.payments.filter(p => !S.payments.find(x => x.id === p.id));
+      const forkastet = ren.skipped.employers + ren.skipped.entries + ren.skipped.payments;
       let msg = `Importer ${newE.length} nye timeregistreringer og ${newP.length} nye utbetalinger`;
       if (newEmps.length) msg += ` og ${newEmps.length} nye arbeidsgivere`;
       msg += '?';
       if (legacy) msg += `\n\nFilen er fra en eldre versjon uten arbeidsgivere. Alt legges på «${empName(target)}».`;
+      if (forkastet) msg += `\n\n${forkastet} poster i filen er ugyldige og hoppes over.`;
       if (!confirm(msg)) return;
       // Eldre fil: overta timelønn-historikken hvis mottakeren ikke har timer fra før
       if (legacy && data.settings && !S.entries.some(e => e.employerId === target)) {
-        const hist = migrateSettings(data.settings).rateHistory;
+        let hist = null;
+        try { hist = cleanRateHistory(migrateSettings(data.settings).rateHistory); } catch {}
         const emp = empById(target);
-        if (emp && Array.isArray(hist) && hist.length) emp.rateHistory = hist;
+        if (emp && hist) emp.rateHistory = hist;
       }
       newEmps.forEach(e => S.employers.push(e));
-      normalizeEmployers(S.employers);
-      const ids = S.employers.map(e => e.id);
-      newE.forEach(e => { if (!e.employerId || !ids.includes(e.employerId)) e.employerId = target; });
-      newP.forEach(p => { if (!p.employerId || !ids.includes(p.employerId)) p.employerId = target; });
+      newE.forEach(e => { if (!e.employerId) e.employerId = target; });
+      newP.forEach(p => { if (!p.employerId) p.employerId = target; });
       S.entries = [...S.entries, ...newE];
       S.payments = [...S.payments, ...newP];
       normalizeActive();
@@ -955,7 +1051,20 @@ function importData(input) {
 // --- Timer state ---
 let timerInterval = null;
 let timerState = { status: 'idle', startedAt: null, accumulated: 0, desc: '', employerId: null };
-try { const ts = localStorage.getItem('ta:timer'); if(ts) timerState = JSON.parse(ts); } catch{}
+try {
+  const ts = localStorage.getItem('ta:timer');
+  const parsed = ts ? JSON.parse(ts) : null;
+  if (parsed && typeof parsed === 'object') {
+    timerState = {
+      status: ['running', 'paused'].includes(parsed.status) ? parsed.status : 'idle',
+      startedAt: asNum(parsed.startedAt),
+      accumulated: Math.max(asNum(parsed.accumulated) || 0, 0),
+      desc: asStr(parsed.desc),
+      employerId: asStr(parsed.employerId)
+    };
+    if (timerState.status === 'running' && !timerState.startedAt) timerState.status = 'paused';
+  }
+} catch {}
 if (!empById(timerState.employerId)) timerState.employerId = defaultEmployerId();
 
 function saveTimer() { try { localStorage.setItem('ta:timer', JSON.stringify(timerState)); } catch{} }
@@ -1034,9 +1143,55 @@ if (timerState.status === 'running') {
   timerInterval = setInterval(tickTimer, 500);
 }
 
-save();   // sikrer at migrerte arbeidsgiver-ID-er lagres første gang
-saveTimer();
-render();
+// Siste utvei: vis rådataene så de kan kopieres ut, i stedet for en tom skjerm.
+// Rører aldri lagringen, slik at ingenting går tapt.
+function showRecovery(err) {
+  const raw = {};
+  ['ta:emp', 'ta:e', 'ta:p', 'ta:s', 'ta:timer', 'ta:active', 'ta:last', 'ta:raw-backup'].forEach(k => {
+    try { const v = localStorage.getItem(k); if (v !== null) raw[k] = v; } catch {}
+  });
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'max-width:520px;margin:0 auto;padding:24px 16px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
+  const h = document.createElement('div');
+  h.textContent = 'Appen klarte ikke å starte';
+  h.style.cssText = 'font-size:18px;font-weight:600;margin-bottom:8px;color:var(--text);';
+  const p = document.createElement('p');
+  p.textContent = 'Dataene dine ligger fortsatt lagret, men noe i dem kunne ikke leses. Kopier teksten under og ta vare på den før du gjør noe annet.';
+  p.style.cssText = 'font-size:14px;line-height:1.5;color:var(--text2);margin-bottom:12px;';
+  const ta = document.createElement('textarea');
+  ta.readOnly = true;
+  ta.value = JSON.stringify(raw, null, 2);
+  ta.style.cssText = 'width:100%;height:220px;font-family:monospace;font-size:11px;padding:10px;border-radius:8px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text);';
+  const btn = document.createElement('button');
+  btn.textContent = 'Kopier data';
+  btn.style.cssText = 'width:100%;margin-top:12px;padding:12px;border:none;border-radius:8px;background:#185FA5;color:#fff;font-size:15px;font-family:inherit;cursor:pointer;';
+  btn.onclick = () => { ta.select(); try { document.execCommand('copy'); btn.textContent = 'Kopiert'; } catch {} };
+  const d = document.createElement('p');
+  d.textContent = 'Teknisk detalj: ' + ((err && err.message) || 'ukjent feil');
+  d.style.cssText = 'font-size:11px;color:var(--text3);margin-top:14px;word-break:break-word;';
+  wrap.append(h, p, ta, btn, d);
+  document.body.innerHTML = '';
+  document.body.appendChild(wrap);
+}
+
+if (bootFeil) {
+  showRecovery(bootFeil);
+} else {
+  try {
+    const sk = S.skipped, tapt = sk.employers + sk.entries + sk.payments;
+    if (tapt > 0) backupRaw();   // må skje før save(), som ellers overskriver originalen
+    save();   // sikrer at migrerte arbeidsgiver-ID-er lagres første gang
+    saveTimer();
+    render();
+    if (tapt > 0) {
+      alert('Noe av den lagrede dataen kunne ikke leses og er utelatt: '
+        + sk.entries + ' timeregistreringer, ' + sk.payments + ' utbetalinger, ' + sk.employers + ' arbeidsgivere.\n\n'
+        + 'En kopi av originalen er tatt vare på. Eksporter gjerne dataene dine nå.');
+    }
+  } catch (err) {
+    showRecovery(err);
+  }
+}
 </script>
 </body>
 </html>
