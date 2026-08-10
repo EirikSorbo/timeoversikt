@@ -35,7 +35,8 @@ body{display:flex;flex-direction:column;}
 .nav-btn{flex:1;border:none;background:transparent;color:var(--text2);cursor:pointer;padding:8px 4px 6px;font-family:inherit;font-size:10px;line-height:1.4;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .15s;}
 .nav-btn i{font-size:22px;}
 .nav-btn.on{color:var(--blue);}
-.top-card{background:var(--blue);border-radius:var(--radius);padding:18px 20px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-end;}
+.top-card{background:var(--blue);border-radius:var(--radius);padding:14px 20px 18px;margin-bottom:12px;display:flex;flex-direction:column;gap:14px;}
+.top-main{display:flex;justify-content:space-between;align-items:flex-end;}
 .top-label{font-size:11px;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
 .top-val{font-size:34px;font-weight:600;color:white;line-height:1;}
 .top-side{text-align:right;display:flex;flex-direction:column;gap:8px;}
@@ -120,6 +121,37 @@ input:focus,select:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(
 .paid-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .paid-dot.green{background:#16a34a;}
 .paid-dot.yellow{background:#d97706;}
+
+.emp-pill{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;max-width:100%;background:rgba(255,255,255,.16);border:none;border-radius:20px;padding:6px 10px 6px 11px;color:#fff;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;}
+.emp-pill:active{background:rgba(255,255,255,.3);}
+.emp-pill .emp-pill-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.emp-pill i{font-size:15px;opacity:.85;margin-left:-2px;}
+.emp-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.emp-pill .emp-dot{box-shadow:0 0 0 1.5px rgba(255,255,255,.55);}
+.emp-inline{display:inline-flex;align-items:center;gap:4px;vertical-align:-1px;}
+.emp-inline .emp-dot{width:7px;height:7px;}
+.sheet-list{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;}
+.sheet-row{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-radius:var(--radius-sm);padding:12px 10px;font-family:inherit;font-size:15px;color:var(--text);cursor:pointer;text-align:left;}
+.sheet-row:active{background:var(--bg2);}
+.sheet-row.on{background:var(--blue-light);color:var(--blue);font-weight:500;}
+.sheet-row .s-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sheet-row .s-amt{font-size:13px;color:var(--text2);flex-shrink:0;}
+.sheet-row.on .s-amt{color:var(--blue);}
+.sheet-row i{font-size:18px;color:var(--blue);}
+.emp-row{cursor:pointer;}
+.color-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.color-chip{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;}
+.color-chip.on{border-color:var(--text);}
+.btn-danger{width:100%;margin-top:14px;background:transparent;border:0.5px solid rgba(163,45,45,.4);color:#A32D2D;border-radius:var(--radius-sm);padding:10px;font-family:inherit;font-size:14px;cursor:pointer;}
+.btn-danger:active{background:rgba(163,45,45,.1);}
+.timer-emp{margin-top:14px;text-align:left;}
+.brk-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border2);}
+.brk-row:last-child{border-bottom:none;}
+.brk-name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.brk-sub{font-size:11px;color:var(--text2);margin-top:2px;}
+.brk-amt{text-align:right;flex-shrink:0;}
+.brk-amt .b-main{font-size:14px;font-weight:600;color:var(--blue);}
+.brk-amt .b-sub{font-size:11px;color:var(--text2);}
 </style>
 </head>
 <body>
@@ -133,11 +165,20 @@ input:focus,select:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(
 <div id="modal-container"></div>
 
 <script>
-const APP_VERSION = "1.09";
+const APP_VERSION = "1.10";
 const LS = {
   get: k => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
+
+const EMP_COLORS = ['#378ADD', '#0E7C66', '#B45309', '#7C3AED', '#BE185D', '#0E8AA5', '#4D7C0F', '#BE123C'];
+
+const fmtKr = n => Math.round(n).toLocaleString('nb-NO') + ' kr';
+const fmtH = h => { const hrs = Math.floor(h), m = Math.round((h - hrs) * 60); return m > 0 ? `${hrs}t ${m}m` : `${hrs}t`; };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const fmtDate = d => new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+const fmtDateShort = d => new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
 
 function migrateSettings(s) {
   if (!s) return { rateHistory: [{ rate: 100, from: '2000-01-01' }] };
@@ -147,24 +188,67 @@ function migrateSettings(s) {
   return s;
 }
 
-let S = {
-  entries: LS.get('ta:e') || [],
-  payments: LS.get('ta:p') || [],
-  settings: migrateSettings(LS.get('ta:s')),
-  tab: 'hours', period: 'month', editE: null, editP: null
+function normalizeEmployers(list) {
+  list.forEach((e, i) => {
+    if (!e.id) e.id = uid();
+    if (!e.name) e.name = 'Arbeidsgiver ' + (i + 1);
+    if (!e.color) e.color = EMP_COLORS[i % EMP_COLORS.length];
+    if (!Array.isArray(e.rateHistory) || !e.rateHistory.length) e.rateHistory = [{ rate: 0, from: '2000-01-01' }];
+  });
+  return list;
+}
+
+function loadState() {
+  const entries = LS.get('ta:e') || [];
+  const payments = LS.get('ta:p') || [];
+  let employers = LS.get('ta:emp');
+  if (!Array.isArray(employers) || !employers.length) {
+    // Første gang: lag én arbeidsgiver av den gamle, globale timelønn-historikken
+    employers = [{ id: uid(), name: 'Min arbeidsgiver', color: EMP_COLORS[0], rateHistory: migrateSettings(LS.get('ta:s')).rateHistory }];
+  }
+  normalizeEmployers(employers);
+  const ids = employers.map(e => e.id);
+  const fallback = ids[0];
+  entries.forEach(e => { if (!e.employerId || !ids.includes(e.employerId)) e.employerId = fallback; });
+  payments.forEach(p => { if (!p.employerId || !ids.includes(p.employerId)) p.employerId = fallback; });
+  let active = LS.get('ta:active') || 'all';
+  if (active !== 'all' && !ids.includes(active)) active = 'all';
+  let last = LS.get('ta:last');
+  if (!ids.includes(last)) last = fallback;
+  return { employers, entries, payments, activeEmployer: active, lastEmployer: last,
+           tab: 'hours', period: 'month', editE: null, editP: null, editEmp: null };
+}
+
+let S = loadState();
+normalizeActive();
+
+const save = () => {
+  LS.set('ta:e', S.entries); LS.set('ta:p', S.payments); LS.set('ta:emp', S.employers);
+  LS.set('ta:active', S.activeEmployer); LS.set('ta:last', S.lastEmployer);
 };
 
-const save = () => { LS.set('ta:e', S.entries); LS.set('ta:p', S.payments); LS.set('ta:s', S.settings); };
+function empById(id) { return S.employers.find(e => e.id === id) || null; }
+function empName(id) { const e = empById(id); return e ? e.name : 'Ukjent'; }
+function empColor(id) { const e = empById(id); return e ? e.color : '#9CA3AF'; }
+function isAll() { return S.activeEmployer === 'all'; }
+function isMulti() { return S.employers.length > 1; }
+function defaultEmployerId() { return isAll() ? (empById(S.lastEmployer) ? S.lastEmployer : S.employers[0].id) : S.activeEmployer; }
+function scopedEntries() { return isAll() ? S.entries : S.entries.filter(e => e.employerId === S.activeEmployer); }
+function scopedPayments() { return isAll() ? S.payments : S.payments.filter(p => p.employerId === S.activeEmployer); }
+function normalizeActive() {
+  if (S.employers.length === 1) S.activeEmployer = S.employers[0].id;
+  else if (!isAll() && !empById(S.activeEmployer)) S.activeEmployer = 'all';
+}
+const empOpts = sel => S.employers.map(e => `<option value="${e.id}"${e.id === sel ? ' selected' : ''}>${esc(e.name)}</option>`).join('');
+const allDot = () => {
+  const c = S.employers.map(e => e.color);
+  return `linear-gradient(135deg, ${c[0] || '#185FA5'} 0 50%, ${c[1] || '#0E7C66'} 50% 100%)`;
+};
 
-const fmtKr = n => Math.round(n).toLocaleString('nb-NO') + ' kr';
-const fmtH = h => { const hrs = Math.floor(h), m = Math.round((h - hrs) * 60); return m > 0 ? `${hrs}t ${m}m` : `${hrs}t`; };
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
-const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
-const fmtDate = d => new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
-const fmtDateShort = d => new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
-
-function rateForDate(date) {
-  const hist = [...S.settings.rateHistory].sort((a, b) => a.from.localeCompare(b.from));
+function rateForDate(date, employerId) {
+  const emp = empById(employerId);
+  if (!emp) return 0;
+  const hist = [...emp.rateHistory].sort((a, b) => a.from.localeCompare(b.from));
   let rate = hist[0].rate;
   for (const h of hist) {
     if (h.from <= date) rate = h.rate;
@@ -173,10 +257,8 @@ function rateForDate(date) {
   return rate;
 }
 
-function currentRate() {
-  const hist = [...S.settings.rateHistory].sort((a, b) => a.from.localeCompare(b.from));
-  return hist[hist.length - 1].rate;
-}
+function currentRate(employerId) { return rateForDate(today(), employerId); }
+function entryAmount(e) { return e.hours * rateForDate(e.date, e.employerId); }
 
 function inPeriod(items, key) {
   const now = new Date();
@@ -189,25 +271,32 @@ function inPeriod(items, key) {
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'); return items.filter(i => i[key].slice(0, 7) === ym);
 }
 
-function totals() {
-  const earned = S.entries.reduce((s, e) => s + e.hours * rateForDate(e.date), 0);
-  const paid = S.payments.reduce((s, p) => s + p.amount, 0);
+function totals(entries, payments) {
+  const es = entries || scopedEntries(), ps = payments || scopedPayments();
+  const earned = es.reduce((s, e) => s + entryAmount(e), 0);
+  const paid = ps.reduce((s, p) => s + p.amount, 0);
   return { earned, paid, outstanding: earned - paid };
+}
+
+function totalsFor(empId) {
+  return totals(S.entries.filter(e => e.employerId === empId), S.payments.filter(p => p.employerId === empId));
 }
 
 
 function calcPaidStatus() {
-  // Sort entries oldest first, greedily apply payments
-  const sorted = [...S.entries].sort((a,b) => a.date.localeCompare(b.date));
-  let remaining = S.payments.reduce((s,p) => s+p.amount, 0);
+  // Per arbeidsgiver: eldste timer først, utbetalinger fordeles fortløpende
   const status = {};
-  for (const e of sorted) {
-    const amt = e.hours * rateForDate(e.date);
-    if (remaining >= amt - 0.01) {
-      status[e.id] = 'green';
-      remaining -= amt;
-    } else {
-      status[e.id] = 'yellow';
+  for (const emp of S.employers) {
+    const sorted = S.entries.filter(e => e.employerId === emp.id).sort((a,b) => a.date.localeCompare(b.date));
+    let remaining = S.payments.filter(p => p.employerId === emp.id).reduce((s,p) => s+p.amount, 0);
+    for (const e of sorted) {
+      const amt = entryAmount(e);
+      if (remaining >= amt - 0.01) {
+        status[e.id] = 'green';
+        remaining -= amt;
+      } else {
+        status[e.id] = 'yellow';
+      }
     }
   }
   return status;
@@ -222,18 +311,71 @@ function render() { renderTop(); renderNav(); renderContent(); }
 
 function renderTop() {
   const { earned, paid, outstanding } = totals();
+  const label = isAll() ? 'Alle arbeidsgivere' : empName(S.activeEmployer);
+  const dot = isAll() ? allDot() : empColor(S.activeEmployer);
   document.getElementById('top-card-el').innerHTML = `
     <div class="top-card">
-      <div>
-        <div class="top-label">Til gode</div>
-        <div class="top-val">${fmtKr(outstanding)}</div>
-      </div>
-      <div class="top-side">
-        <div class="top-side-item"><div class="side-label">Opptjent</div><div class="side-val">${fmtKr(earned)}</div></div>
-        <div class="top-side-item"><div class="side-label">Utbetalt</div><div class="side-val">${fmtKr(paid)}</div></div>
+      <button class="emp-pill" onclick="openEmployerSheet()" aria-label="Velg arbeidsgiver">
+        <span class="emp-dot" style="background:${dot}"></span>
+        <span class="emp-pill-name">${esc(label)}</span>
+        <i class="ti ti-chevron-down"></i>
+      </button>
+      <div class="top-main">
+        <div>
+          <div class="top-label">Til gode</div>
+          <div class="top-val">${fmtKr(outstanding)}</div>
+        </div>
+        <div class="top-side">
+          <div class="top-side-item"><div class="side-label">Opptjent</div><div class="side-val">${fmtKr(earned)}</div></div>
+          <div class="top-side-item"><div class="side-label">Utbetalt</div><div class="side-val">${fmtKr(paid)}</div></div>
+        </div>
       </div>
     </div>`;
 }
+
+function openEmployerSheet() {
+  const rows = [];
+  if (isMulti()) {
+    const t = totals(S.entries, S.payments);
+    rows.push(`<button class="sheet-row${isAll() ? ' on' : ''}" onclick="setEmployer('all')">
+      <span class="emp-dot" style="background:${allDot()}"></span>
+      <span class="s-name">Alle arbeidsgivere</span>
+      <span class="s-amt">${fmtKr(t.outstanding)}</span>
+      ${isAll() ? '<i class="ti ti-check"></i>' : ''}
+    </button>`);
+  }
+  S.employers.forEach(e => {
+    const t = totalsFor(e.id);
+    const on = S.activeEmployer === e.id;
+    rows.push(`<button class="sheet-row${on ? ' on' : ''}" onclick="setEmployer('${e.id}')">
+      <span class="emp-dot" style="background:${e.color}"></span>
+      <span class="s-name">${esc(e.name)}</span>
+      <span class="s-amt">${fmtKr(t.outstanding)}</span>
+      ${on ? '<i class="ti ti-check"></i>' : ''}
+    </button>`);
+  });
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-title">Velg arbeidsgiver</div>
+        <div class="sheet-list">${rows.join('')}</div>
+        <button class="xbtn" onclick="showAddEmployer()"><i class="ti ti-plus"></i> Ny arbeidsgiver</button>
+        <button class="xbtn" style="margin-bottom:0" onclick="closeModal();goManageEmployers()"><i class="ti ti-settings"></i> Administrer arbeidsgivere</button>
+        <div class="modal-btns"><button class="modal-close" style="flex:1" onclick="closeModal()">Lukk</button></div>
+      </div>
+    </div>`;
+}
+
+function setEmployer(id) {
+  S.activeEmployer = id;
+  if (id !== 'all') S.lastEmployer = id;
+  if (timerState.status === 'idle') { timerState.employerId = defaultEmployerId(); saveTimer(); }
+  S.editE = null; S.editP = null;
+  save(); closeModal(); render();
+  document.getElementById('scroll-area').scrollTop = 0;
+}
+
+function goManageEmployers() { S.tab = 'settings'; S.editEmp = null; render(); document.getElementById('scroll-area').scrollTop = 0; }
 
 function renderNav() {
   const tabs = [
@@ -275,20 +417,26 @@ function tabHours() {
         ${isActive ? `<button class="tbtn stop" onclick="stopTimer()">⏹ Lagre</button>` : ''}
         ${isActive ? `<button class="tbtn reset" onclick="if(confirm('Er du sikker på at du vil slette denne økten?'))resetTimer()" style="max-width:44px;padding:12px 8px;">✕</button>` : ''}
       </div>
+      ${isMulti() ? `<div class="timer-emp field">
+        <label>Føres på</label>
+        <select onchange="setTimerEmployer(this.value)">${empOpts(timerState.employerId)}</select>
+      </div>` : ''}
       ${isActive ? `<div class="timer-desc field" style="margin-top:14px;text-align:left;">
         <label>Beskrivelse</label>
         <input type="text" value="${esc(timerState.desc)}" oninput="timerDescChange(this.value)" placeholder="Hva jobber du med?">
       </div>` : ''}
     </div>`;
 
-  const fil = inPeriod(S.entries, 'date');
+  const scoped = scopedEntries();
+  const fil = inPeriod(scoped, 'date');
   const ph = fil.reduce((s, e) => s + e.hours, 0);
-  const pamt = fil.reduce((s, e) => s + e.hours * rateForDate(e.date), 0);
-  const sorted = [...S.entries].sort((a, b) => b.date.localeCompare(a.date));
+  const pamt = fil.reduce((s, e) => s + entryAmount(e), 0);
+  const sorted = [...scoped].sort((a, b) => b.date.localeCompare(a.date));
   const paidStatus = calcPaidStatus();
+  const showEmp = isAll() && isMulti();
 
   const items = sorted.map(e => {
-    const r = rateForDate(e.date);
+    const r = rateForDate(e.date, e.employerId);
     if (S.editE === e.id) {
       const hrs = Math.floor(e.hours), mins = Math.round((e.hours - hrs) * 60);
       return `<div class="item">
@@ -297,6 +445,7 @@ function tabHours() {
           <div class="iact"><button class="ibtn del" onclick="cancelEditE()">✕</button></div>
         </div>
         <div class="edit-form">
+          ${isMulti() ? `<div class="field" style="margin-bottom:8px"><label>Arbeidsgiver</label><select id="ee-emp">${empOpts(e.employerId)}</select></div>` : ''}
           <div class="ef-row">
             <div class="field"><label>Dato</label><input type="date" id="ee-date" value="${e.date}"></div>
             <div class="field"><label>Timer / min</label><div class="hm"><select id="ee-h">${hoursOpts(hrs)}</select><select id="ee-m">${minsOpts(mins)}</select></div></div>
@@ -309,10 +458,13 @@ function tabHours() {
         </div>
       </div>`;
     }
+    const empTag = showEmp
+      ? ` · <span class="emp-inline"><span class="emp-dot" style="background:${empColor(e.employerId)}"></span>${esc(empName(e.employerId))}</span>`
+      : '';
     return `<div class="item">
       <div class="item-row">
-        <div class="paid-dot ${paidStatus[e.id]}"></div>
-        <div class="iinfo"><div class="idate">${fmtDate(e.date)}</div><div class="idesc">${esc(e.description) || '—'}</div></div>
+        <div class="paid-dot ${paidStatus[e.id] || 'yellow'}"></div>
+        <div class="iinfo"><div class="idate">${fmtDate(e.date)}${empTag}</div><div class="idesc">${esc(e.description) || '—'}</div></div>
         <div class="iamt">
           <div class="iamt-main">${fmtH(e.hours)}</div>
           <div class="iamt-sub">${fmtKr(e.hours * r)} · ${r.toLocaleString('nb-NO')} kr/t</div>
@@ -328,6 +480,7 @@ function tabHours() {
   return timerUI + `
     <div class="card">
       <div class="card-title">Registrer timer</div>
+      ${isMulti() ? `<div class="field" style="margin-bottom:10px"><label>Arbeidsgiver</label><select id="e-emp">${empOpts(defaultEmployerId())}</select></div>` : ''}
       <div class="row2">
         <div class="field"><label>Dato</label><input type="date" id="e-date" value="${today()}"></div>
         <div class="field"><label>Timer / minutter</label><div class="hm"><select id="e-h">${hoursOpts()}</select><select id="e-m">${minsOpts()}</select></div></div>
@@ -351,7 +504,8 @@ function tabHours() {
 }
 
 function tabPayments() {
-  const sorted = [...S.payments].sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = [...scopedPayments()].sort((a, b) => b.date.localeCompare(a.date));
+  const showEmp = isAll() && isMulti();
   const items = sorted.map(p => {
     if (S.editP === p.id) {
       return `<div class="item">
@@ -360,6 +514,7 @@ function tabPayments() {
           <div class="iact"><button class="ibtn del" onclick="cancelEditP()">✕</button></div>
         </div>
         <div class="edit-form">
+          ${isMulti() ? `<div class="field" style="margin-bottom:8px"><label>Arbeidsgiver</label><select id="ep-emp">${empOpts(p.employerId)}</select></div>` : ''}
           <div class="ef-row">
             <div class="field"><label>Dato</label><input type="date" id="ep-date" value="${p.date}"></div>
             <div class="field"><label>Beløp (kr)</label><input type="number" id="ep-amt" value="${p.amount}" min="0"></div>
@@ -372,9 +527,12 @@ function tabPayments() {
         </div>
       </div>`;
     }
+    const empTag = showEmp
+      ? ` · <span class="emp-inline"><span class="emp-dot" style="background:${empColor(p.employerId)}"></span>${esc(empName(p.employerId))}</span>`
+      : '';
     return `<div class="item">
       <div class="item-row">
-        <div class="iinfo"><div class="idate">${fmtDate(p.date)}</div><div class="idesc">${esc(p.description) || '—'}</div></div>
+        <div class="iinfo"><div class="idate">${fmtDate(p.date)}${empTag}</div><div class="idesc">${esc(p.description) || '—'}</div></div>
         <div class="iamt"><div class="iamt-main">${fmtKr(p.amount)}</div></div>
         <div class="iact">
           <button class="ibtn" onclick="startEditP('${p.id}')" aria-label="Rediger">✏️</button>
@@ -387,6 +545,7 @@ function tabPayments() {
   return `
     <div class="card">
       <div class="card-title">Registrer utbetaling</div>
+      ${isMulti() ? `<div class="field" style="margin-bottom:10px"><label>Arbeidsgiver</label><select id="p-emp">${empOpts(defaultEmployerId())}</select></div>` : ''}
       <div class="row2">
         <div class="field"><label>Dato</label><input type="date" id="p-date" value="${today()}"></div>
         <div class="field"><label>Beløp (kr)</label><input type="number" id="p-amt" placeholder="0" min="0"></div>
@@ -404,13 +563,31 @@ let _chart = null;
 
 function tabOverview() {
   const { earned, paid, outstanding } = totals();
-  const th = S.entries.reduce((s, e) => s + e.hours, 0);
+  const th = scopedEntries().reduce((s, e) => s + e.hours, 0);
+  let breakdown = '';
+  if (isAll() && isMulti()) {
+    breakdown = '<div class="card"><div class="card-title">Per arbeidsgiver</div>'
+      + S.employers.map(emp => {
+          const t = totalsFor(emp.id);
+          const h = S.entries.filter(e => e.employerId === emp.id).reduce((s, e) => s + e.hours, 0);
+          return `<div class="brk-row">
+            <span class="emp-dot" style="background:${emp.color}"></span>
+            <div style="flex:1;min-width:0">
+              <div class="brk-name">${esc(emp.name)}</div>
+              <div class="brk-sub">${fmtH(h)} · ${fmtKr(t.earned)} opptjent · ${fmtKr(t.paid)} utbetalt</div>
+            </div>
+            <div class="brk-amt"><div class="b-main">${fmtKr(t.outstanding)}</div><div class="b-sub">til gode</div></div>
+          </div>`;
+        }).join('')
+      + '</div>';
+  }
   return '<div class="metrics">'
     + '<div class="metric"><div class="mlabel">Totalt timer</div><div class="mval">' + fmtH(th) + '</div></div>'
     + '<div class="metric"><div class="mlabel">Totalt opptjent</div><div class="mval">' + fmtKr(earned) + '</div></div>'
     + '<div class="metric"><div class="mlabel">Utbetalt</div><div class="mval">' + fmtKr(paid) + '</div></div>'
     + '<div class="metric hi"><div class="mlabel">Til gode</div><div class="mval">' + fmtKr(outstanding) + '</div></div>'
     + '</div>'
+    + breakdown
     + '<div class="card">'
     + '<div class="card-title">Månedsoversikt – siste 6 måneder</div>'
     + '<div style="display:flex;gap:12px;font-size:12px;color:#6B7280;margin-bottom:12px;">'
@@ -431,8 +608,9 @@ function renderChart() {
     const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
     return { key, label: d.toLocaleDateString('nb-NO', { month: 'short', year: '2-digit' }) };
   });
-  const earnedData = months.map(m => Math.round(S.entries.filter(e => e.date.startsWith(m.key)).reduce((s, e) => s + e.hours * rateForDate(e.date), 0)));
-  const paidData   = months.map(m => Math.round(S.payments.filter(p => p.date.startsWith(m.key)).reduce((s, p) => s + p.amount, 0)));
+  const chartE = scopedEntries(), chartP = scopedPayments();
+  const earnedData = months.map(m => Math.round(chartE.filter(e => e.date.startsWith(m.key)).reduce((s, e) => s + entryAmount(e), 0)));
+  const paidData   = months.map(m => Math.round(chartP.filter(p => p.date.startsWith(m.key)).reduce((s, p) => s + p.amount, 0)));
   _chart = new Chart(canvas, {
     type: 'bar',
     data: {
@@ -459,21 +637,74 @@ function renderChart() {
 
 
 function tabSettings() {
-  const cr = currentRate();
-  const hist = [...S.settings.rateHistory].sort((a, b) => b.from.localeCompare(a.from));
+  const cards = S.employers.map(emp => {
+    const cr = currentRate(emp.id);
+    const nE = S.entries.filter(e => e.employerId === emp.id).length;
+    const t = totalsFor(emp.id);
+
+    if (S.editEmp !== emp.id) {
+      return `<div class="item">
+        <div class="item-row emp-row" onclick="toggleEmp('${emp.id}')">
+          <span class="emp-dot" style="background:${emp.color}"></span>
+          <div class="iinfo">
+            <div class="idesc">${esc(emp.name)}</div>
+            <div class="idate" style="margin:2px 0 0">${cr.toLocaleString('nb-NO')} kr/t · ${nE} registrering${nE === 1 ? '' : 'er'}</div>
+          </div>
+          <div class="iamt"><div class="iamt-main">${fmtKr(t.outstanding)}</div><div class="iamt-sub">til gode</div></div>
+          <div class="iact"><button class="ibtn" aria-label="Rediger"><i class="ti ti-chevron-right"></i></button></div>
+        </div>
+      </div>`;
+    }
+
+    const hist = [...emp.rateHistory].sort((a, b) => b.from.localeCompare(a.from));
+    const activeFrom = (hist.find(h => h.from <= today()) || hist[hist.length - 1]).from;
+    const histRows = hist.map(h => `
+      <div class="rate-row${h.from === activeFrom ? ' current' : ''}">
+        <span class="r-date">${h.from === '2000-01-01' ? 'fra start' : 'fra ' + fmtDateShort(h.from)}</span>
+        <span style="display:flex;align-items:center;gap:6px;">
+          <span class="r-val">${h.rate.toLocaleString('nb-NO')} kr/t</span>
+          ${emp.rateHistory.length > 1 ? `<button class="ibtn del" onclick="deleteRate('${emp.id}','${h.from}')" aria-label="Slett"><i class="ti ti-trash"></i></button>` : ''}
+        </span>
+      </div>`).join('');
+
+    return `<div class="item">
+      <div class="item-row emp-row" onclick="toggleEmp('${emp.id}')">
+        <span class="emp-dot" style="background:${emp.color}"></span>
+        <div class="iinfo"><div class="idesc">${esc(emp.name)}</div></div>
+        <div class="iact"><button class="ibtn" aria-label="Lukk"><i class="ti ti-chevron-up"></i></button></div>
+      </div>
+      <div class="edit-form">
+        <div class="field" style="margin-bottom:10px;"><label>Navn</label><input type="text" id="emp-name-${emp.id}" value="${esc(emp.name)}"></div>
+        <div class="field" style="margin-bottom:10px;">
+          <label>Farge</label>
+          <div class="color-chips">${EMP_COLORS.map(c => `<button class="color-chip${c === emp.color ? ' on' : ''}" style="background:${c}" onclick="setEmpColor('${emp.id}','${c}')" aria-label="Velg farge"></button>`).join('')}</div>
+        </div>
+        <button class="ef-save" style="width:100%;" onclick="saveEmpName('${emp.id}')">Lagre navn</button>
+
+        <div class="rate-current" style="margin:16px 0 10px;">
+          <span class="rate-big">${cr.toLocaleString('nb-NO')}</span>
+          <span class="rate-label">kr / time (nåværende)</span>
+        </div>
+        <div class="ef-row">
+          <div class="field"><label>Ny sats (kr/t)</label><input type="number" id="rate-val-${emp.id}" placeholder="${cr}" min="0" step="10"></div>
+          <div class="field"><label>Gjelder fra</label><input type="date" id="rate-from-${emp.id}" value="${today()}"></div>
+        </div>
+        <button class="ef-save" style="width:100%;" onclick="saveRate('${emp.id}')">Sett ny timelønn</button>
+        <div class="rate-history">
+          <div class="rate-history-title">Timelønn-historikk</div>
+          ${histRows}
+        </div>
+        <button class="btn-danger" onclick="deleteEmployer('${emp.id}')">Slett arbeidsgiver</button>
+      </div>
+    </div>`;
+  }).join('');
 
   return `
     <div class="card">
-      <div class="card-title">Timelønn</div>
-      <div class="rate-current">
-        <span class="rate-big">${cr.toLocaleString('nb-NO')}</span>
-        <span class="rate-label">kr / time (nåværende)</span>
-      </div>
-      <div class="field" style="margin-bottom:10px;">
-        <label>Ny timelønn fra i dag (kr/t)</label>
-        <input type="number" id="rate-input" placeholder="${cr}" min="0" step="10">
-      </div>
-      <button class="btn-p" onclick="saveRate()">Sett ny timelønn</button>
+      <div class="card-title">Arbeidsgivere</div>
+      <div class="list" style="margin-bottom:10px;">${cards}</div>
+      <button class="xbtn" style="margin-bottom:0;" onclick="showAddEmployer()"><i class="ti ti-plus"></i> Ny arbeidsgiver</button>
+      <p class="note">Timelønn, timer og utbetalinger holdes adskilt per arbeidsgiver. Bytt arbeidsgiver med knappen øverst på skjermen.</p>
     </div>
 
     <div class="card">
@@ -487,7 +718,7 @@ function tabSettings() {
 `;
 }
 
-function setTab(t) { S.tab = t; S.editE = null; S.editP = null; render(); document.getElementById('scroll-area').scrollTop = 0; }
+function setTab(t) { S.tab = t; S.editE = null; S.editP = null; S.editEmp = null; render(); document.getElementById('scroll-area').scrollTop = 0; }
 function setPeriod(p) { S.period = p; renderContent(); }
 
 function addE() {
@@ -495,13 +726,17 @@ function addE() {
   const h = parseInt(document.getElementById('e-h').value) || 0;
   const m = parseInt(document.getElementById('e-m').value) || 0;
   const desc = (document.getElementById('e-desc').value || '').trim();
-  const r = rateForDate(date);
+  const empSel = document.getElementById('e-emp');
+  const employerId = empSel ? empSel.value : defaultEmployerId();
+  const r = rateForDate(date, employerId);
   const hours = h + m / 60;
   if (!date || (h + m) === 0) { alert('Velg dato og minst 5 minutter'); return; }
   const kr = Math.round(hours * r).toLocaleString('nb-NO');
   const hStr = h > 0 && m > 0 ? h + 't ' + m + 'min' : h > 0 ? h + 't' : m + 'min';
-  if (!confirm('Legg til ' + hStr + ' (' + kr + ' kr) den ' + new Date(date+'T12:00:00').toLocaleDateString('nb-NO', {day:'numeric',month:'long'}) + '?')) return;
-  S.entries.push({ id: uid(), date, hours, description: desc });
+  const forWho = isMulti() ? ' på ' + empName(employerId) : '';
+  if (!confirm('Legg til ' + hStr + ' (' + kr + ' kr)' + forWho + ' den ' + new Date(date+'T12:00:00').toLocaleDateString('nb-NO', {day:'numeric',month:'long'}) + '?')) return;
+  S.entries.push({ id: uid(), employerId, date, hours, description: desc });
+  S.lastEmployer = employerId;
   save(); render();
 }
 function delE(id) { if (!confirm('Slett denne registreringen?')) return; S.entries = S.entries.filter(e => e.id !== id); save(); render(); }
@@ -512,6 +747,8 @@ function saveEditE(id) {
   const h = parseInt(document.getElementById('ee-h').value) || 0;
   const m = parseInt(document.getElementById('ee-m').value) || 0;
   if (!document.getElementById('ee-date').value || (h + m) === 0) { alert('Velg dato og tid'); return; }
+  const empSel = document.getElementById('ee-emp');
+  if (empSel) e.employerId = empSel.value;
   e.date = document.getElementById('ee-date').value;
   e.hours = h + m / 60;
   e.description = (document.getElementById('ee-desc').value || '').trim();
@@ -521,8 +758,11 @@ function saveEditE(id) {
 function addP() {
   const date = document.getElementById('p-date').value;
   const amount = parseFloat(document.getElementById('p-amt').value);
+  const empSel = document.getElementById('p-emp');
+  const employerId = empSel ? empSel.value : defaultEmployerId();
   if (!date || isNaN(amount) || amount <= 0) { alert('Fyll inn dato og beløp'); return; }
-  S.payments.push({ id: uid(), date, amount, description: (document.getElementById('p-desc').value || '').trim() });
+  S.payments.push({ id: uid(), employerId, date, amount, description: (document.getElementById('p-desc').value || '').trim() });
+  S.lastEmployer = employerId;
   save(); render();
 }
 function delP(id) { if (!confirm('Slett denne utbetalingen?')) return; S.payments = S.payments.filter(p => p.id !== id); save(); render(); }
@@ -532,34 +772,111 @@ function saveEditP(id) {
   const p = S.payments.find(x => x.id === id); if (!p) return;
   const amount = parseFloat(document.getElementById('ep-amt').value);
   if (!document.getElementById('ep-date').value || isNaN(amount) || amount <= 0) { alert('Fyll inn dato og beløp'); return; }
+  const empSel = document.getElementById('ep-emp');
+  if (empSel) p.employerId = empSel.value;
   p.date = document.getElementById('ep-date').value;
   p.amount = amount;
   p.description = (document.getElementById('ep-desc').value || '').trim();
   S.editP = null; save(); render();
 }
 
-function saveRate() {
-  const v = parseFloat(document.getElementById('rate-input').value);
-  if (isNaN(v) || v <= 0) { alert('Skriv inn en gyldig timelønn'); return; }
-  const t = today();
-  const existing = S.settings.rateHistory.find(h => h.from === t);
-  if (existing) {
-    existing.rate = v;
-  } else {
-    S.settings.rateHistory.push({ rate: v, from: t });
-  }
-  save(); renderContent();
+function toggleEmp(id) { S.editEmp = S.editEmp === id ? null : id; renderContent(); }
+
+function saveEmpName(id) {
+  const emp = empById(id); if (!emp) return;
+  const name = (document.getElementById('emp-name-' + id).value || '').trim();
+  if (!name) { alert('Skriv inn et navn'); return; }
+  if (S.employers.some(e => e.id !== id && e.name.toLowerCase() === name.toLowerCase())) { alert('Du har allerede en arbeidsgiver med dette navnet'); return; }
+  emp.name = name;
+  save(); render();
 }
 
-function deleteRate(from) {
-  if (S.settings.rateHistory.length <= 1) return;
-  if (!confirm('Slett denne timelønnen fra historikken?')) return;
-  S.settings.rateHistory = S.settings.rateHistory.filter(h => h.from !== from);
-  save(); renderContent();
+function setEmpColor(id, color) {
+  const emp = empById(id); if (!emp) return;
+  emp.color = color;
+  save(); render();
+}
+
+function showAddEmployer() {
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-title">Ny arbeidsgiver</div>
+        <div class="field" style="margin-bottom:10px;"><label>Navn</label><input type="text" id="new-emp-name" placeholder="F.eks. Bedrift AS"></div>
+        <div class="field"><label>Timelønn (kr/t)</label><input type="number" id="new-emp-rate" placeholder="0" min="0" step="10"></div>
+        <div class="modal-btns">
+          <button class="btn-p" onclick="addEmployer()">Legg til</button>
+          <button class="modal-close" onclick="closeModal()">Avbryt</button>
+        </div>
+      </div>
+    </div>`;
+  const inp = document.getElementById('new-emp-name');
+  if (inp) inp.focus();
+}
+
+function addEmployer() {
+  const name = (document.getElementById('new-emp-name').value || '').trim();
+  const rate = parseFloat(document.getElementById('new-emp-rate').value);
+  if (!name) { alert('Skriv inn et navn'); return; }
+  if (S.employers.some(e => e.name.toLowerCase() === name.toLowerCase())) { alert('Du har allerede en arbeidsgiver med dette navnet'); return; }
+  if (isNaN(rate) || rate <= 0) { alert('Skriv inn en gyldig timelønn'); return; }
+  const used = S.employers.map(e => e.color);
+  const color = EMP_COLORS.find(c => !used.includes(c)) || EMP_COLORS[S.employers.length % EMP_COLORS.length];
+  const id = uid();
+  S.employers.push({ id, name, color, rateHistory: [{ rate, from: '2000-01-01' }] });
+  S.activeEmployer = id; S.lastEmployer = id;
+  normalizeActive();
+  if (timerState.status === 'idle') { timerState.employerId = id; saveTimer(); }
+  S.editEmp = null;
+  save(); closeModal(); render();
+  document.getElementById('scroll-area').scrollTop = 0;
+}
+
+function deleteEmployer(id) {
+  if (S.employers.length <= 1) { alert('Du må ha minst én arbeidsgiver.'); return; }
+  const nE = S.entries.filter(e => e.employerId === id).length;
+  const nP = S.payments.filter(p => p.employerId === id).length;
+  const name = empName(id);
+  if (nE || nP) {
+    if (!confirm('Slett «' + name + '»?\n\n' + nE + ' timeregistreringer og ' + nP + ' utbetalinger slettes samtidig. Dette kan ikke angres.')) return;
+    if (!confirm('Er du helt sikker? All data for «' + name + '» forsvinner.')) return;
+  } else if (!confirm('Slett «' + name + '»?')) return;
+  S.employers = S.employers.filter(e => e.id !== id);
+  S.entries = S.entries.filter(e => e.employerId !== id);
+  S.payments = S.payments.filter(p => p.employerId !== id);
+  if (S.activeEmployer === id) S.activeEmployer = 'all';
+  if (S.lastEmployer === id) S.lastEmployer = S.employers[0].id;
+  normalizeActive();
+  if (!empById(timerState.employerId)) { timerState.employerId = defaultEmployerId(); saveTimer(); }
+  S.editEmp = null;
+  save(); render();
+}
+
+function saveRate(empId) {
+  const emp = empById(empId); if (!emp) return;
+  const v = parseFloat(document.getElementById('rate-val-' + empId).value);
+  const from = document.getElementById('rate-from-' + empId).value || today();
+  if (isNaN(v) || v <= 0) { alert('Skriv inn en gyldig timelønn'); return; }
+  const existing = emp.rateHistory.find(h => h.from === from);
+  if (existing) {
+    if (!confirm('Du har allerede en sats fra ' + fmtDateShort(from) + ' (' + existing.rate.toLocaleString('nb-NO') + ' kr/t). Erstatte den?')) return;
+    existing.rate = v;
+  } else {
+    emp.rateHistory.push({ rate: v, from });
+  }
+  save(); render();
+}
+
+function deleteRate(empId, from) {
+  const emp = empById(empId); if (!emp) return;
+  if (emp.rateHistory.length <= 1) return;
+  if (!confirm('Slett denne timelønnen fra historikken? Timer i denne perioden regnes om til satsen som gjaldt før.')) return;
+  emp.rateHistory = emp.rateHistory.filter(h => h.from !== from);
+  save(); render();
 }
 
 function exportData() {
-  const json = JSON.stringify({ entries: S.entries, payments: S.payments, settings: S.settings, exportedAt: new Date().toISOString() }, null, 2);
+  const json = JSON.stringify({ version: APP_VERSION, employers: S.employers, entries: S.entries, payments: S.payments, exportedAt: new Date().toISOString() }, null, 2);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   if (isIOS) {
     showExportModal(json);
@@ -602,13 +919,32 @@ function importData(input) {
   reader.onload = ev => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (!data.entries || !data.payments) { alert('Ugyldig fil – mangler data'); return; }
+      if (!Array.isArray(data.entries) || !Array.isArray(data.payments)) { alert('Ugyldig fil – mangler data'); return; }
+      const incomingEmps = Array.isArray(data.employers) ? data.employers : [];
+      const legacy = incomingEmps.length === 0;
+      const target = defaultEmployerId();
+      const newEmps = incomingEmps.filter(e => e && e.id && !S.employers.find(x => x.id === e.id));
       const newE = data.entries.filter(e => !S.entries.find(x => x.id === e.id));
       const newP = data.payments.filter(p => !S.payments.find(x => x.id === p.id));
-      if (!confirm(`Importer ${newE.length} nye timeregistreringer og ${newP.length} nye utbetalinger?`)) return;
+      let msg = `Importer ${newE.length} nye timeregistreringer og ${newP.length} nye utbetalinger`;
+      if (newEmps.length) msg += ` og ${newEmps.length} nye arbeidsgivere`;
+      msg += '?';
+      if (legacy) msg += `\n\nFilen er fra en eldre versjon uten arbeidsgivere. Alt legges på «${empName(target)}».`;
+      if (!confirm(msg)) return;
+      // Eldre fil: overta timelønn-historikken hvis mottakeren ikke har timer fra før
+      if (legacy && data.settings && !S.entries.some(e => e.employerId === target)) {
+        const hist = migrateSettings(data.settings).rateHistory;
+        const emp = empById(target);
+        if (emp && Array.isArray(hist) && hist.length) emp.rateHistory = hist;
+      }
+      newEmps.forEach(e => S.employers.push(e));
+      normalizeEmployers(S.employers);
+      const ids = S.employers.map(e => e.id);
+      newE.forEach(e => { if (!e.employerId || !ids.includes(e.employerId)) e.employerId = target; });
+      newP.forEach(p => { if (!p.employerId || !ids.includes(p.employerId)) p.employerId = target; });
       S.entries = [...S.entries, ...newE];
       S.payments = [...S.payments, ...newP];
-      if (data.settings) S.settings = migrateSettings(data.settings);
+      normalizeActive();
       save(); render(); alert('Import fullført!');
     } catch (err) { alert('Kunne ikke lese filen: ' + err.message); }
   };
@@ -618,8 +954,9 @@ function importData(input) {
 
 // --- Timer state ---
 let timerInterval = null;
-let timerState = { status: 'idle', startedAt: null, accumulated: 0, desc: '' };
+let timerState = { status: 'idle', startedAt: null, accumulated: 0, desc: '', employerId: null };
 try { const ts = localStorage.getItem('ta:timer'); if(ts) timerState = JSON.parse(ts); } catch{}
+if (!empById(timerState.employerId)) timerState.employerId = defaultEmployerId();
 
 function saveTimer() { try { localStorage.setItem('ta:timer', JSON.stringify(timerState)); } catch{} }
 
@@ -666,18 +1003,25 @@ function stopTimer() {
   if (ms < 60000 && !confirm('Under 1 minutt registrert – vil du likevel legge til?')) return;
   const hours = Math.round(ms / (1000 * 60 * 5)) * (5/60); // round to 5-min
   const desc = timerState.desc || '';
-  timerState = { status: 'idle', startedAt: null, accumulated: 0, desc: '' };
+  const employerId = empById(timerState.employerId) ? timerState.employerId : defaultEmployerId();
+  timerState = { status: 'idle', startedAt: null, accumulated: 0, desc: '', employerId };
   saveTimer();
   clearInterval(timerInterval); timerInterval = null;
-  S.entries.push({ id: uid(), date: today(), hours: Math.max(hours, 5/60), description: desc });
+  S.entries.push({ id: uid(), employerId, date: today(), hours: Math.max(hours, 5/60), description: desc });
+  S.lastEmployer = employerId;
   save(); render();
 }
 
 function resetTimer() {
-  timerState = { status: 'idle', startedAt: null, accumulated: 0, desc: '' };
+  timerState = { status: 'idle', startedAt: null, accumulated: 0, desc: '', employerId: timerState.employerId };
   saveTimer();
   clearInterval(timerInterval); timerInterval = null;
   renderContent();
+}
+
+function setTimerEmployer(id) {
+  timerState.employerId = id;
+  saveTimer();
 }
 
 function timerDescChange(val) {
@@ -690,6 +1034,8 @@ if (timerState.status === 'running') {
   timerInterval = setInterval(tickTimer, 500);
 }
 
+save();   // sikrer at migrerte arbeidsgiver-ID-er lagres første gang
+saveTimer();
 render();
 </script>
 </body>
