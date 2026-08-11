@@ -164,7 +164,7 @@ input:focus,select:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(
 <div id="modal-container"></div>
 
 <script>
-const APP_VERSION = "1.12";
+const APP_VERSION = "1.13";
 const LS = {
   get: k => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }
@@ -194,6 +194,8 @@ function migrateSettings(s) {
   return s;
 }
 
+const REPEATS = ['once', 'monthly', 'weekly'];
+const REPEAT_LABEL = { once: 'Engangsbeløp', monthly: 'Månedlig', weekly: 'Ukentlig' };
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
@@ -210,9 +212,9 @@ function cleanRateHistory(list) {
 // Én felles validering for både oppstart og import. Alt som slipper gjennom her
 // er trygt å regne på og trygt å skrive inn i HTML, slik at en ødelagt eller
 // håndredigert fil aldri kan sette appen i en tilstand som kaster.
-function sanitizeData(rawEmployers, rawEntries, rawPayments, knownIds) {
-  const skipped = { employers: 0, entries: 0, payments: 0 };
-  const seenEmp = new Set(), seenE = new Set(), seenP = new Set();
+function sanitizeData(rawEmployers, rawEntries, rawPayments, rawFixed, knownIds) {
+  const skipped = { employers: 0, entries: 0, payments: 0, fixed: 0 };
+  const seenEmp = new Set(), seenE = new Set(), seenP = new Set(), seenF = new Set();
 
   const employers = [];
   (Array.isArray(rawEmployers) ? rawEmployers : []).forEach((e, i) => {
@@ -252,11 +254,24 @@ function sanitizeData(rawEmployers, rawEntries, rawPayments, knownIds) {
                     date: p.date, amount, description: asStr(p.description) });
   });
 
-  return { employers, entries, payments, skipped };
+  const fixed = [];
+  (Array.isArray(rawFixed) ? rawFixed : []).forEach(f => {
+    const amount = f && typeof f === 'object' ? asNum(f.amount) : null;
+    if (!f || typeof f !== 'object' || !ISO_DATE.test(asStr(f.from)) || amount === null || amount <= 0) { skipped.fixed++; return; }
+    let id = asStr(f.id);
+    if (!SAFE_ID.test(id) || seenF.has(id)) id = uid();
+    seenF.add(id);
+    const repeat = REPEATS.includes(asStr(f.repeat)) ? f.repeat : 'once';
+    const to = repeat !== 'once' && ISO_DATE.test(asStr(f.to)) && f.to >= f.from ? f.to : null;
+    fixed.push({ id, employerId: kjente.includes(asStr(f.employerId)) ? f.employerId : '',
+                 amount, repeat, from: f.from, to, description: asStr(f.description) });
+  });
+
+  return { employers, entries, payments, fixed, skipped };
 }
 
 function loadState() {
-  const d = sanitizeData(LS.get('ta:emp'), LS.get('ta:e'), LS.get('ta:p'));
+  const d = sanitizeData(LS.get('ta:emp'), LS.get('ta:e'), LS.get('ta:p'), LS.get('ta:f'));
   if (!d.employers.length) {
     // Første gang: lag én arbeidsgiver av den gamle, globale timelønn-historikken
     let legacy = null;
@@ -268,28 +283,31 @@ function loadState() {
   const fallback = ids[0];
   d.entries.forEach(e => { if (!e.employerId) e.employerId = fallback; });
   d.payments.forEach(p => { if (!p.employerId) p.employerId = fallback; });
+  d.fixed.forEach(f => { if (!f.employerId) f.employerId = fallback; });
   let active = asStr(LS.get('ta:active')) || 'all';
   if (active !== 'all' && !ids.includes(active)) active = 'all';
   let last = asStr(LS.get('ta:last'));
   if (!ids.includes(last)) last = fallback;
-  return { employers: d.employers, entries: d.entries, payments: d.payments,
+  return { employers: d.employers, entries: d.entries, payments: d.payments, fixed: d.fixed,
            activeEmployer: active, lastEmployer: last, skipped: d.skipped,
-           tab: 'hours', period: 'month', editE: null, editP: null, editEmp: null };
+           tab: 'hours', period: 'month', fixedKind: 'monthly',
+           editE: null, editP: null, editEmp: null, editF: null };
 }
 
 let S, bootFeil = null;
 try { S = loadState(); normalizeActive(); }
 catch (err) {
   bootFeil = err;
-  S = { employers: [], entries: [], payments: [], activeEmployer: 'all', lastEmployer: null,
-        skipped: { employers: 0, entries: 0, payments: 0 },
-        tab: 'hours', period: 'month', editE: null, editP: null, editEmp: null };
+  S = { employers: [], entries: [], payments: [], fixed: [], activeEmployer: 'all', lastEmployer: null,
+        skipped: { employers: 0, entries: 0, payments: 0, fixed: 0 },
+        tab: 'hours', period: 'month', fixedKind: 'monthly',
+        editE: null, editP: null, editEmp: null, editF: null };
 }
 
 const save = () => {
   const ok = [
     LS.set('ta:e', S.entries), LS.set('ta:p', S.payments), LS.set('ta:emp', S.employers),
-    LS.set('ta:active', S.activeEmployer), LS.set('ta:last', S.lastEmployer)
+    LS.set('ta:f', S.fixed), LS.set('ta:active', S.activeEmployer), LS.set('ta:last', S.lastEmployer)
   ].every(Boolean);
   if (!ok) warnStorage();
 };
@@ -301,7 +319,7 @@ function backupRaw() {
     localStorage.setItem('ta:raw-backup', JSON.stringify({
       at: new Date().toISOString(),
       emp: localStorage.getItem('ta:emp'), e: localStorage.getItem('ta:e'),
-      p: localStorage.getItem('ta:p'), s: localStorage.getItem('ta:s')
+      p: localStorage.getItem('ta:p'), f: localStorage.getItem('ta:f'), s: localStorage.getItem('ta:s')
     }));
   } catch {}
 }
@@ -317,6 +335,7 @@ function defaultEmployerId() {
 }
 function scopedEntries() { return isAll() ? S.entries : S.entries.filter(e => e.employerId === S.activeEmployer); }
 function scopedPayments() { return isAll() ? S.payments : S.payments.filter(p => p.employerId === S.activeEmployer); }
+function scopedFixed() { return isAll() ? S.fixed : S.fixed.filter(f => f.employerId === S.activeEmployer); }
 function normalizeActive() {
   if (S.employers.length === 1) S.activeEmployer = S.employers[0].id;
   else if (!isAll() && !empById(S.activeEmployer)) S.activeEmployer = 'all';
@@ -342,6 +361,54 @@ function rateForDate(date, employerId) {
 function currentRate(employerId) { return rateForDate(today(), employerId); }
 function entryAmount(e) { return e.hours * rateForDate(e.date, e.employerId); }
 
+const isoOf = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+
+// Datoene et fast beløp har forfalt på, til og med i dag. Gjentakelser regnes ut
+// ved behov i stedet for å lagres, slik at ingenting må «kjøres» i bakgrunnen.
+function fixedOccurrences(f, until) {
+  const slutt = f.to && f.to < (until || today()) ? f.to : (until || today());
+  const ut = [];
+  if (!f.from || f.from > slutt) return ut;
+  if (f.repeat === 'once') { ut.push(f.from); return ut; }
+  if (f.repeat === 'weekly') {
+    const d = new Date(f.from + 'T12:00:00');
+    let vakt = 0;
+    while (vakt++ < 3000) {
+      const iso = isoOf(d);
+      if (iso > slutt) break;
+      ut.push(iso);
+      d.setDate(d.getDate() + 7);
+    }
+    return ut;
+  }
+  const start = new Date(f.from + 'T12:00:00');
+  const dag = start.getDate();
+  let y = start.getFullYear(), m = start.getMonth(), vakt = 0;
+  while (vakt++ < 1200) {
+    const sisteIMnd = new Date(y, m + 1, 0).getDate();   // klemmer den 31. inn i korte måneder
+    const iso = isoOf(new Date(y, m, Math.min(dag, sisteIMnd), 12));
+    if (iso > slutt) break;
+    if (iso >= f.from) ut.push(iso);
+    m++; if (m > 11) { m = 0; y++; }
+  }
+  return ut;
+}
+
+function fixedNext(f) {
+  if (f.repeat === 'once') return f.from > today() ? f.from : null;
+  const ettÅrFram = isoOf(new Date(new Date().getFullYear() + 1, new Date().getMonth(), new Date().getDate()));
+  const alle = fixedOccurrences(f, ettÅrFram);
+  return alle.find(d => d > today()) || null;
+}
+
+function fixedEarnings(list) {
+  const ut = [];
+  (list || S.fixed).forEach(f => fixedOccurrences(f).forEach(date => ut.push({ date, amount: f.amount, employerId: f.employerId })));
+  return ut;
+}
+
+function fixedEarned(list) { return fixedEarnings(list).reduce((s, o) => s + o.amount, 0); }
+
 function inPeriod(items, key) {
   const now = new Date();
   if (S.period === 'week') {
@@ -353,31 +420,37 @@ function inPeriod(items, key) {
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'); return items.filter(i => i[key].slice(0, 7) === ym);
 }
 
-function totals(entries, payments) {
-  const es = entries || scopedEntries(), ps = payments || scopedPayments();
-  const earned = es.reduce((s, e) => s + entryAmount(e), 0);
+function totals(entries, payments, fixed) {
+  const es = entries || scopedEntries(), ps = payments || scopedPayments(), fs = fixed || scopedFixed();
+  const timer = es.reduce((s, e) => s + entryAmount(e), 0);
+  const fast = fixedEarned(fs);
   const paid = ps.reduce((s, p) => s + p.amount, 0);
-  return { earned, paid, outstanding: earned - paid };
+  return { timer, fast, earned: timer + fast, paid, outstanding: timer + fast - paid };
 }
 
 function totalsFor(empId) {
-  return totals(S.entries.filter(e => e.employerId === empId), S.payments.filter(p => p.employerId === empId));
+  return totals(S.entries.filter(e => e.employerId === empId),
+                S.payments.filter(p => p.employerId === empId),
+                S.fixed.filter(f => f.employerId === empId));
 }
 
 
 function calcPaidStatus() {
-  // Per arbeidsgiver: eldste timer først, utbetalinger fordeles fortløpende
+  // Per arbeidsgiver: eldste inntekt først, utbetalinger fordeles fortløpende.
+  // Faste beløp tas med i fordelingen, ellers ville timene sett betalt ut for tidlig.
   const status = {};
   for (const emp of S.employers) {
-    const sorted = S.entries.filter(e => e.employerId === emp.id).sort((a,b) => a.date.localeCompare(b.date));
+    const inntekter = [
+      ...S.entries.filter(e => e.employerId === emp.id).map(e => ({ date: e.date, amt: entryAmount(e), id: e.id })),
+      ...fixedEarnings(S.fixed.filter(f => f.employerId === emp.id)).map(o => ({ date: o.date, amt: o.amount, id: null }))
+    ].sort((a, b) => a.date.localeCompare(b.date));
     let remaining = S.payments.filter(p => p.employerId === emp.id).reduce((s,p) => s+p.amount, 0);
-    for (const e of sorted) {
-      const amt = entryAmount(e);
-      if (remaining >= amt - 0.01) {
-        status[e.id] = 'green';
-        remaining -= amt;
-      } else {
-        status[e.id] = 'yellow';
+    for (const i of inntekter) {
+      if (remaining >= i.amt - 0.01) {
+        if (i.id) status[i.id] = 'green';
+        remaining -= i.amt;
+      } else if (i.id) {
+        status[i.id] = 'yellow';
       }
     }
   }
@@ -416,7 +489,7 @@ function renderTop() {
 function openEmployerSheet() {
   const rows = [];
   if (isMulti()) {
-    const t = totals(S.entries, S.payments);
+    const t = totals(S.entries, S.payments, S.fixed);
     rows.push(`<button class="sheet-row${isAll() ? ' on' : ''}" onclick="setEmployer('all')">
       <span class="emp-dot" style="background:${allDot()}"></span>
       <span class="s-name">Alle arbeidsgivere</span>
@@ -450,7 +523,7 @@ function setEmployer(id) {
   S.activeEmployer = id;
   if (id !== 'all') S.lastEmployer = id;
   if (timerState.status === 'idle') { timerState.employerId = defaultEmployerId(); saveTimer(); }
-  S.editE = null; S.editP = null;
+  S.editE = null; S.editP = null; S.editF = null;
   save(); closeModal(); render();
   document.getElementById('scroll-area').scrollTop = 0;
 }
@@ -460,6 +533,7 @@ function goManageEmployers() { S.tab = 'settings'; S.editEmp = null; render(); d
 function renderNav() {
   const tabs = [
     { id: 'hours', icon: 'ti-clock', label: 'Timer' },
+    { id: 'fixed', icon: 'ti-repeat', label: 'Faste beløp' },
     { id: 'payments', icon: 'ti-coin', label: 'Utbetalinger' },
     { id: 'overview', icon: 'ti-chart-bar', label: 'Oversikt' },
     { id: 'settings', icon: 'ti-settings', label: 'Innstillinger' }
@@ -476,6 +550,7 @@ const minsOpts = (sel = 0) => Array.from({ length: 12 }, (_, i) => i * 5).map(m 
 function renderContent() {
   const el = document.getElementById('content');
   if (S.tab === 'hours') el.innerHTML = tabHours();
+  else if (S.tab === 'fixed') el.innerHTML = tabFixed();
   else if (S.tab === 'payments') el.innerHTML = tabPayments();
   else if (S.tab === 'overview') { el.innerHTML = tabOverview(); renderChart(); }
   else el.innerHTML = tabSettings();
@@ -639,6 +714,98 @@ function tabPayments() {
       : items}</div>`;
 }
 
+function fixedMeta(f) {
+  const fra = fmtDateShort(f.from);
+  if (f.repeat === 'once') return 'Engangsbeløp · ' + fra;
+  const gjentakelse = f.repeat === 'monthly' ? 'Hver måned' : 'Hver uke';
+  return gjentakelse + ' fra ' + fra + (f.to ? ' til ' + fmtDateShort(f.to) : '');
+}
+
+function tabFixed() {
+  const scoped = scopedFixed();
+  const showEmp = isAll() && isMulti();
+  const sorted = [...scoped].sort((a, b) => b.from.localeCompare(a.from));
+  const totalt = fixedEarned(scoped);
+
+  const items = sorted.map(f => {
+    if (S.editF === f.id) {
+      return `<div class="item">
+        <div class="item-row">
+          <div class="iinfo"><div class="idate">${fixedMeta(f)}</div><div class="idesc">${esc(f.description) || '—'}</div></div>
+          <div class="iact"><button class="ibtn del" onclick="cancelEditF()">✕</button></div>
+        </div>
+        <div class="edit-form">
+          ${isMulti() ? `<div class="field" style="margin-bottom:8px"><label>Arbeidsgiver</label><select id="ef-emp">${empOpts(f.employerId)}</select></div>` : ''}
+          <div class="field" style="margin-bottom:8px">
+            <label>Type</label>
+            <select id="ef-repeat" onchange="setEditFKind(this.value)">${REPEATS.map(r => `<option value="${r}"${r === S.editFKind ? ' selected' : ''}>${REPEAT_LABEL[r]}</option>`).join('')}</select>
+          </div>
+          <div class="ef-row">
+            <div class="field"><label>Beløp (kr)</label><input type="number" id="ef-amt" value="${f.amount}" min="0"></div>
+            <div class="field"><label>${S.editFKind === 'once' ? 'Dato' : 'Fra dato'}</label><input type="date" id="ef-from" value="${f.from}"></div>
+          </div>
+          ${S.editFKind !== 'once' ? `<div class="field" style="margin-bottom:8px"><label>Til dato (valgfritt)</label><input type="date" id="ef-to" value="${f.to || ''}"></div>` : ''}
+          <div class="field"><label>Beskrivelse</label><input type="text" id="ef-desc" value="${esc(f.description)}"></div>
+          <div class="ef-btns">
+            <button class="ef-save" onclick="saveEditF('${f.id}')">Lagre</button>
+            <button class="ef-cancel" onclick="cancelEditF()">Avbryt</button>
+          </div>
+        </div>
+      </div>`;
+    }
+    const ant = fixedOccurrences(f).length;
+    const sum = ant * f.amount;
+    const neste = fixedNext(f);
+    const empTag = showEmp
+      ? ` · <span class="emp-inline"><span class="emp-dot" style="background:${empColor(f.employerId)}"></span>${esc(empName(f.employerId))}</span>`
+      : '';
+    const status = ant === 0
+      ? (neste ? 'starter ' + fmtDateShort(neste) : 'ikke forfalt')
+      : (f.repeat === 'once' ? 'opptjent' : `${ant} ganger · ${fmtKr(sum)}`);
+    return `<div class="item">
+      <div class="item-row">
+        <div class="iinfo"><div class="idate">${fixedMeta(f)}${empTag}</div><div class="idesc">${esc(f.description) || '—'}</div></div>
+        <div class="iamt">
+          <div class="iamt-main">${fmtKr(f.amount)}</div>
+          <div class="iamt-sub">${status}</div>
+        </div>
+        <div class="iact">
+          <button class="ibtn" onclick="startEditF('${f.id}')" aria-label="Rediger">✏️</button>
+          <button class="ibtn del" onclick="delF('${f.id}')" aria-label="Slett">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div class="card-title">Legg til fast beløp</div>
+      ${isMulti() ? `<div class="field" style="margin-bottom:10px"><label>Arbeidsgiver</label><select id="f-emp">${empOpts(defaultEmployerId())}</select></div>` : ''}
+      <div class="field" style="margin-bottom:10px">
+        <label>Type</label>
+        <div class="period-row" style="margin-bottom:0">
+          ${REPEATS.map(r => `<button class="pbtn${S.fixedKind === r ? ' on' : ''}" onclick="setFixedKind('${r}')">${REPEAT_LABEL[r]}</button>`).join('')}
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Beløp (kr)</label><input type="number" id="f-amt" placeholder="0" min="0"></div>
+        <div class="field"><label>${S.fixedKind === 'once' ? 'Dato' : 'Fra dato'}</label><input type="date" id="f-from" value="${today()}"></div>
+      </div>
+      ${S.fixedKind !== 'once' ? `<div class="field" style="margin-bottom:10px"><label>Til dato (valgfritt)</label><input type="date" id="f-to"></div>` : ''}
+      <div class="field" style="margin-bottom:10px"><label>Beskrivelse</label><input type="text" id="f-desc" placeholder="${S.fixedKind === 'once' ? 'F.eks. bonus' : 'F.eks. fast månedslønn'}"></div>
+      <button class="btn-p" onclick="addF()">Legg til</button>
+    </div>
+    ${sorted.length ? `<div class="metrics">
+      <div class="metric"><div class="mlabel">Faste beløp</div><div class="mval">${sorted.length}</div></div>
+      <div class="metric hi"><div class="mlabel">Opptjent hittil</div><div class="mval">${fmtKr(totalt)}</div></div>
+    </div>` : ''}
+    <div class="list-title">Faste beløp</div>
+    <div class="list">${sorted.length === 0
+      ? `<div class="empty"><i class="ti ti-repeat"></i><p>Ingen faste beløp lagt inn</p></div>`
+      : items}</div>
+    <p class="note" style="padding:0 2px;">Faste beløp telles som opptjent på forfallsdatoen, på samme måte som timer. Gjentakende beløp fortsetter til du setter en sluttdato.</p>`;
+}
+
 let _chart = null;
 
 function tabOverview() {
@@ -650,11 +817,14 @@ function tabOverview() {
       + S.employers.map(emp => {
           const t = totalsFor(emp.id);
           const h = S.entries.filter(e => e.employerId === emp.id).reduce((s, e) => s + e.hours, 0);
+          const sub = t.fast > 0
+            ? `${fmtH(h)} · ${fmtKr(t.timer)} timer · ${fmtKr(t.fast)} fast · ${fmtKr(t.paid)} utbetalt`
+            : `${fmtH(h)} · ${fmtKr(t.earned)} opptjent · ${fmtKr(t.paid)} utbetalt`;
           return `<div class="brk-row">
             <span class="emp-dot" style="background:${emp.color}"></span>
             <div style="flex:1;min-width:0">
               <div class="brk-name">${esc(emp.name)}</div>
-              <div class="brk-sub">${fmtH(h)} · ${fmtKr(t.earned)} opptjent · ${fmtKr(t.paid)} utbetalt</div>
+              <div class="brk-sub">${sub}</div>
             </div>
             <div class="brk-amt"><div class="b-main">${fmtKr(t.outstanding)}</div><div class="b-sub">til gode</div></div>
           </div>`;
@@ -688,8 +858,10 @@ function renderChart() {
     const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
     return { key, label: d.toLocaleDateString('nb-NO', { month: 'short', year: '2-digit' }) };
   });
-  const chartE = scopedEntries(), chartP = scopedPayments();
-  const earnedData = months.map(m => Math.round(chartE.filter(e => e.date.startsWith(m.key)).reduce((s, e) => s + entryAmount(e), 0)));
+  const chartE = scopedEntries(), chartP = scopedPayments(), chartF = fixedEarnings(scopedFixed());
+  const earnedData = months.map(m =>
+    Math.round(chartE.filter(e => e.date.startsWith(m.key)).reduce((s, e) => s + entryAmount(e), 0)
+             + chartF.filter(o => o.date.startsWith(m.key)).reduce((s, o) => s + o.amount, 0)));
   const paidData   = months.map(m => Math.round(chartP.filter(p => p.date.startsWith(m.key)).reduce((s, p) => s + p.amount, 0)));
   _chart = new Chart(canvas, {
     type: 'bar',
@@ -798,7 +970,7 @@ function tabSettings() {
 `;
 }
 
-function setTab(t) { S.tab = t; S.editE = null; S.editP = null; S.editEmp = null; render(); document.getElementById('scroll-area').scrollTop = 0; }
+function setTab(t) { S.tab = t; S.editE = null; S.editP = null; S.editEmp = null; S.editF = null; render(); document.getElementById('scroll-area').scrollTop = 0; }
 function setPeriod(p) { S.period = p; renderContent(); }
 
 function addE() {
@@ -858,6 +1030,61 @@ function saveEditP(id) {
   p.amount = amount;
   p.description = (document.getElementById('ep-desc').value || '').trim();
   S.editP = null; save(); render();
+}
+
+function setFixedKind(k) { S.fixedKind = k; renderContent(); }
+function setEditFKind(k) { S.editFKind = k; renderContent(); }
+
+function addF() {
+  const amount = parseFloat(document.getElementById('f-amt').value);
+  const from = document.getElementById('f-from').value;
+  const toEl = document.getElementById('f-to');
+  const to = toEl && toEl.value ? toEl.value : null;
+  const empSel = document.getElementById('f-emp');
+  const employerId = empSel ? empSel.value : defaultEmployerId();
+  const repeat = S.fixedKind;
+  if (isNaN(amount) || amount <= 0) { alert('Fyll inn et beløp'); return; }
+  if (!from) { alert('Velg en dato'); return; }
+  if (to && to < from) { alert('Til-datoen kan ikke være før fra-datoen'); return; }
+  S.fixed.push({ id: uid(), employerId, amount, repeat, from, to,
+                 description: (document.getElementById('f-desc').value || '').trim() });
+  S.lastEmployer = employerId;
+  save(); render();
+}
+
+function delF(id) {
+  const f = S.fixed.find(x => x.id === id); if (!f) return;
+  const ant = fixedOccurrences(f).length;
+  const advarsel = ant > 0 ? '\n\n' + fmtKr(ant * f.amount) + ' som er opptjent hittil forsvinner fra regnskapet.' : '';
+  if (!confirm('Slett dette faste beløpet?' + advarsel)) return;
+  S.fixed = S.fixed.filter(x => x.id !== id);
+  save(); render();
+}
+
+function startEditF(id) {
+  const f = S.fixed.find(x => x.id === id); if (!f) return;
+  S.editF = id; S.editFKind = f.repeat; renderContent();
+}
+function cancelEditF() { S.editF = null; renderContent(); }
+
+function saveEditF(id) {
+  const f = S.fixed.find(x => x.id === id); if (!f) return;
+  const amount = parseFloat(document.getElementById('ef-amt').value);
+  const from = document.getElementById('ef-from').value;
+  const toEl = document.getElementById('ef-to');
+  const to = toEl && toEl.value ? toEl.value : null;
+  const repeat = document.getElementById('ef-repeat').value;
+  if (isNaN(amount) || amount <= 0) { alert('Fyll inn et beløp'); return; }
+  if (!from) { alert('Velg en dato'); return; }
+  if (to && to < from) { alert('Til-datoen kan ikke være før fra-datoen'); return; }
+  const empSel = document.getElementById('ef-emp');
+  if (empSel) f.employerId = empSel.value;
+  f.amount = amount;
+  f.repeat = REPEATS.includes(repeat) ? repeat : 'once';
+  f.from = from;
+  f.to = f.repeat === 'once' ? null : to;
+  f.description = (document.getElementById('ef-desc').value || '').trim();
+  S.editF = null; save(); render();
 }
 
 function toggleEmp(id) { S.editEmp = S.editEmp === id ? null : id; renderContent(); }
@@ -925,14 +1152,16 @@ function deleteEmployer(id) {
   if (S.employers.length <= 1) { alert('Du må ha minst én arbeidsgiver.'); return; }
   const nE = S.entries.filter(e => e.employerId === id).length;
   const nP = S.payments.filter(p => p.employerId === id).length;
+  const nF = S.fixed.filter(f => f.employerId === id).length;
   const name = empName(id);
-  if (nE || nP) {
-    if (!confirm('Slett «' + name + '»?\n\n' + nE + ' timeregistreringer og ' + nP + ' utbetalinger slettes samtidig. Dette kan ikke angres.')) return;
+  if (nE || nP || nF) {
+    if (!confirm('Slett «' + name + '»?\n\n' + nE + ' timeregistreringer, ' + nF + ' faste beløp og ' + nP + ' utbetalinger slettes samtidig. Dette kan ikke angres.')) return;
     if (!confirm('Er du helt sikker? All data for «' + name + '» forsvinner.')) return;
   } else if (!confirm('Slett «' + name + '»?')) return;
   S.employers = S.employers.filter(e => e.id !== id);
   S.entries = S.entries.filter(e => e.employerId !== id);
   S.payments = S.payments.filter(p => p.employerId !== id);
+  S.fixed = S.fixed.filter(f => f.employerId !== id);
   if (S.activeEmployer === id) S.activeEmployer = 'all';
   if (S.lastEmployer === id) S.lastEmployer = S.employers[0].id;
   normalizeActive();
@@ -965,7 +1194,7 @@ function deleteRate(empId, from) {
 }
 
 function exportData() {
-  const json = JSON.stringify({ version: APP_VERSION, employers: S.employers, entries: S.entries, payments: S.payments, exportedAt: new Date().toISOString() }, null, 2);
+  const json = JSON.stringify({ version: APP_VERSION, employers: S.employers, entries: S.entries, payments: S.payments, fixed: S.fixed, exportedAt: new Date().toISOString() }, null, 2);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   if (isIOS) {
     showExportModal(json);
@@ -1014,12 +1243,14 @@ function importData(input) {
       const legacy = !Array.isArray(data.employers) || data.employers.length === 0;
       const target = defaultEmployerId();
       // Samme validering som ved oppstart: ugyldige poster slipper aldri inn i appen
-      const ren = sanitizeData(data.employers, data.entries, data.payments, S.employers.map(e => e.id));
+      const ren = sanitizeData(data.employers, data.entries, data.payments, data.fixed, S.employers.map(e => e.id));
       const newEmps = ren.employers.filter(e => !S.employers.find(x => x.id === e.id));
       const newE = ren.entries.filter(e => !S.entries.find(x => x.id === e.id));
       const newP = ren.payments.filter(p => !S.payments.find(x => x.id === p.id));
-      const forkastet = ren.skipped.employers + ren.skipped.entries + ren.skipped.payments;
+      const newF = ren.fixed.filter(f => !S.fixed.find(x => x.id === f.id));
+      const forkastet = ren.skipped.employers + ren.skipped.entries + ren.skipped.payments + ren.skipped.fixed;
       let msg = `Importer ${newE.length} nye timeregistreringer og ${newP.length} nye utbetalinger`;
+      if (newF.length) msg += `, ${newF.length} nye faste beløp`;
       if (newEmps.length) msg += ` og ${newEmps.length} nye arbeidsgivere`;
       msg += '?';
       if (legacy) msg += `\n\nFilen er fra en eldre versjon uten arbeidsgivere. Alt legges på «${empName(target)}».`;
@@ -1035,8 +1266,10 @@ function importData(input) {
       newEmps.forEach(e => S.employers.push(e));
       newE.forEach(e => { if (!e.employerId) e.employerId = target; });
       newP.forEach(p => { if (!p.employerId) p.employerId = target; });
+      newF.forEach(f => { if (!f.employerId) f.employerId = target; });
       S.entries = [...S.entries, ...newE];
       S.payments = [...S.payments, ...newP];
+      S.fixed = [...S.fixed, ...newF];
       normalizeActive();
       save(); render(); alert('Import fullført!');
     } catch (err) { alert('Kunne ikke lese filen: ' + err.message); }
@@ -1144,7 +1377,7 @@ if (timerState.status === 'running') {
 // Rører aldri lagringen, slik at ingenting går tapt.
 function showRecovery(err) {
   const raw = {};
-  ['ta:emp', 'ta:e', 'ta:p', 'ta:s', 'ta:timer', 'ta:active', 'ta:last', 'ta:raw-backup'].forEach(k => {
+  ['ta:emp', 'ta:e', 'ta:p', 'ta:f', 'ta:s', 'ta:timer', 'ta:active', 'ta:last', 'ta:raw-backup'].forEach(k => {
     try { const v = localStorage.getItem(k); if (v !== null) raw[k] = v; } catch {}
   });
   const wrap = document.createElement('div');
@@ -1175,14 +1408,14 @@ if (bootFeil) {
   showRecovery(bootFeil);
 } else {
   try {
-    const sk = S.skipped, tapt = sk.employers + sk.entries + sk.payments;
+    const sk = S.skipped, tapt = sk.employers + sk.entries + sk.payments + sk.fixed;
     if (tapt > 0) backupRaw();   // må skje før save(), som ellers overskriver originalen
     save();   // sikrer at migrerte arbeidsgiver-ID-er lagres første gang
     saveTimer();
     render();
     if (tapt > 0) {
       alert('Noe av den lagrede dataen kunne ikke leses og er utelatt: '
-        + sk.entries + ' timeregistreringer, ' + sk.payments + ' utbetalinger, ' + sk.employers + ' arbeidsgivere.\n\n'
+        + sk.entries + ' timeregistreringer, ' + sk.fixed + ' faste beløp, ' + sk.payments + ' utbetalinger, ' + sk.employers + ' arbeidsgivere.\n\n'
         + 'En kopi av originalen er tatt vare på. Eksporter gjerne dataene dine nå.');
     }
   } catch (err) {
